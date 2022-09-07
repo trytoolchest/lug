@@ -94,3 +94,14 @@ def test_without_shell(number, **kwargs):
     run_value = subprocess.Popen(["/bin/ls", "-l"])
     print("return code:", run_value.wait())
     return number
+
+
+@pytest.mark.unit
+@base_test_decorator
+@lug.run(image=BASE_TEST_IMAGE)
+def test_check_output_redirects(number, **kwargs):
+    """Tests behavior when shell=True is not specified and a list is passed in as args."""
+    p = subprocess.Popen(["ls", "/"], stdout=subprocess.PIPE)
+    out, err = p.communicate()
+    assert out == b'bin\ndev\netc\nhome\nlib\nlug\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\n'
+    return number
