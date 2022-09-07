@@ -1,0 +1,103 @@
+version: 2.1
+orbs:
+  python: circleci/python@2.0.3
+jobs:
+  deploy-to-pypi:
+    executor: python/default
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - python/install-packages:
+          pkg-manager: poetry
+      - run:
+          name: Build and publish to PyPI
+          command: |
+            cd ~/repo
+            PYPI_ENVIRONMENT=$([[ $CIRCLE_BRANCH = main ]] && echo prod-pypi || echo test-pypi)
+            PYPI_ACCESS_TOKEN=$([[ $PYPI_ENVIRONMENT = prod-pypi ]] && echo $PYPI_PROD_TOKEN || echo $PYPI_TEST_TOKEN)
+            poetry config pypi-token.$PYPI_ENVIRONMENT $PYPI_ACCESS_TOKEN
+            poetry publish --build -r $PYPI_ENVIRONMENT
+  unit-tests:
+    machine:
+      image: ubuntu-2204:2022.07.1
+    working_directory: ~/repo
+    parallelism: 8
+    steps:
+      - checkout
+      - run:
+          name: Run unit tests
+          command: |
+            cd ~/repo
+            shopt -s globstar
+            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
+            shopt -u globstar
+            curl -sSL https://install.python-poetry.org | python3 -
+            ~/.local/bin/poetry install
+            mkdir -p lug-unit-test-results
+            ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
+      - store_test_results:
+          path: lug-unit-test-results
+      - store_artifacts:
+          path: lug-unit-test-results
+  integration-tests:
+    machine:
+      image: ubuntu-2204:2022.07.1
+    working_directory: ~/repo
+    parallelism: 4
+    steps:
+      - checkout
+      - run:
+          name: Run integration tests
+          parallel: true
+          command: |
+            cd ~/repo
+            export DEPLOY_ENVIRONMENT=$([[ $CIRCLE_BRANCH = main ]] && echo production || echo staging)
+            shopt -s globstar
+            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
+            shopt -u globstar
+            curl -sSL https://install.python-poetry.org | python3 -
+            ~/.local/bin/poetry install
+            mkdir -p lug-integration-test-results
+            ~/.local/bin/poetry run pytest -v -m integration --durations=0 --junitxml=lug-integration-test-results/junit.xml $TESTFILES
+          no_output_timeout: 1h
+      - store_test_results:
+          path: lug-integration-test-results
+      - store_artifacts:
+          path: lug-integration-test-results
+  lint:
+    executor: python/default
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - python/install-packages:
+          pkg-manager: poetry
+      - run:
+          name: Run flake8 linter
+          parallel: true
+          command: |
+            cd ~/repo
+            pip install flake8
+            flake8 ./ --output-file test-reports
+          no_output_timeout: 5m
+      - store_artifacts:
+          path: test-reports
+          destination: test-reports
+workflows:
+  test:
+    jobs:
+      - unit-tests
+      - lint
+      - integration-tests:
+          filters:
+            branches:
+              only:
+                - main
+                - staging
+#  deploy: # Skipping deploy to PyPI until we're ready
+#    jobs:
+#      - deploy-to-pypi:
+#          filters:
+#            branches:
+#              only:
+#                - main
+#                - staging

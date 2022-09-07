@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
+site_name: Lug
+theme:
+  name: material
+  icon:
+    logo: material/truck
+    repo: fontawesome/brands/github
+  favicon: images/truck.png
+  features:
+    - navigation.tabs
+    - header.autohide
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+      primary: white
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+      primary: black
+nav:
+  - Home: "index.md"
+  - Getting started:
+      - Installation: "getting-started/installation.md"
+      - Adding Lug to a Function: "getting-started/adding-lug-to-a-function.md"
+      - Running Lug Remotely: "getting-started/running-lug-remotely.md"
+      - Using Files: "getting-started/using-files.md"
+  - Reference:
+      - Redirected System Calls: "reference/redirected-system-calls.md"
+      - Supported Docker Images: "reference/supported-docker-images.md"
+  - Troubleshooting:
+      - Common Errors: "troubleshooting/common-errors.md"
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/trytoolchest/lug
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/zgeJ9Pss
+  analytics:
+    provider: google
+    property: G-3E64E6D9RJ
+  generator: false
+repo_url: https://github.com/trytoolchest/lug
+repo_name: lug
+edit_uri: edit/main/docs/docs
+copyright: Copyright 2022 Toolchest, Inc.

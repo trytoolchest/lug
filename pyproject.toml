@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "lug"
+version = "0.1.2"
+description = "Run Python functions in Docker containers, locally or in the cloud."
+authors = [
+    "Bryce Cai <bryce@trytoolchest.com>",
+    "Justin Herr <justin@trytoolchest.com>",
+    "Noah Lebovic <noah@trytoolchest.com",
+]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://lug.dev"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+packages = [
+    { include = "lug", from = "src" },
+]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/trytoolchest/lug/issues"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+docker = "^6.0.0"
+cloudpickle = "^2.1.0"
+toolchest-client = "^0.9.38"
+
+# Poetry 1.2 introduces a breaking change: this should eventually be refactored to "tool.poetry.group.dev.dependencies"
+# For now, all CircleCI Python orbs still have Poetry 1.1, which doesn't support the "group" notation
+[tool.poetry.dev-dependencies]
+mkdocs-material = "^8.4.2"
+pytest = "^7.1.3"
+numpy = ">=1.21.0,<1.22.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.source]]
+name = "pypi-public"
+url = "https://pypi.org/simple/"
+
+[[tool.poetry.source]]
+name = "pypi-test-public"
+url = "https://test.pypi.org/simple/"
+default = false
+secondary = true
+
+[[tool.poetry.source]]
+name = "prod-pypi"
+url = "https://upload.pypi.org/legacy/"
+secondary = true
+
+[[tool.poetry.source]]
+name = "test-pypi"
+url = "https://test.pypi.org/legacy/"
+default = false
+secondary = true
+
