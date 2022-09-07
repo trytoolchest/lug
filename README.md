@@ -9,7 +9,7 @@
         <img src="https://img.shields.io/discord/1016544715128176721?labelColor=212121&color=304FFE&label=discord" /></a>
 </p>
 
-Lug is an open source package that redirects Python calls to `subprocess.run`, `subprocess.Popen`, and `os.system` into 
+**Lug** is an open source package that redirects Python calls to `subprocess.run`, `subprocess.Popen`, and `os.system` into 
 any Docker container. This makes these system-level Python calls behave the same way on different machines, without 
 requiring any changes to the Docker container.
 
