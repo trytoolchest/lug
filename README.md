@@ -4,7 +4,7 @@
     <a href="https://pypi.python.org/pypi/lug/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/lug?labelColor=212121&color=304FFE"></a>
     <a href="https://github.com/trytoolchest/lug/" alt="Build">
-        <img src="https://img.shields.io/circleci/build/gh/trytoolchest/lug/main?label=build&token=489fb8616ca5ac7fa8652f89c6926bc70ab8f1e8&labelColor=212121&color=304FFE" /></a>
+        <img src="https://img.shields.io/circleci/build/gh/trytoolchest/lug/main?label=build&token=3eb013dde86ed79996a768ab325cd30ea3a1c993&labelColor=212121&color=304FFE" /></a>
     <a href="https://discord.gg/zgeJ9Pss" alt="Discord">
         <img src="https://img.shields.io/discord/1016544715128176721?labelColor=212121&color=304FFE&label=discord" /></a>
 </p>
