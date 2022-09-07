@@ -23,21 +23,23 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
 
     def run(*args, **kwargs):
         """Lug-replaced function."""
-        # todo: if we add shell script/entry point as an arg, propagate that here
         docker_exec_args = [
-            "/bin/sh",
-            "-c",
             "docker",
             "exec",
             f"{user_docker_container_name}",
-            docker_shell_location,
-            "-c",
-            "'",
         ]
-        if type(args) is list:
-            raise NotImplementedError("Only subprocess with shell=True supported, add me!")
+        if type(args[0]) is list:
+            # subprocess.run or subprocess.Popen without shell
+            original_list_args = args[0]
+            docker_exec_args += original_list_args
+            return original_function(docker_exec_args, *args[1:], **kwargs)
         else:
-            stringified_docker_command = ' '.join(docker_exec_args[2:])
+            additional_docker_exec_args = [
+                docker_shell_location,
+                "-c",
+                "'"
+            ]
+            stringified_docker_command = ' '.join(docker_exec_args + additional_docker_exec_args)
             user_command = args[0].replace("'", r"'\''")  # sanitizes single quotes within sh command
             new_args = stringified_docker_command + user_command + "'"
         if pass_kwargs:
