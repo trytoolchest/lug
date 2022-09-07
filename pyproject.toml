@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "lug"
-version = "0.1.2"
-description = "Run Python functions in Docker containers, locally or in the cloud."
+version = "0.1.3"
+description = "Run Python functions paired with any Docker container. Run locally or in the cloud."
 authors = [
     "Bryce Cai <bryce@trytoolchest.com>",
     "Justin Herr <justin@trytoolchest.com>",
