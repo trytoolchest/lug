@@ -31,7 +31,7 @@ jobs:
           command: |
             cd ~/repo
             curl -sSL https://install.python-poetry.org | python3 -
-            ln -s ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
+            ln -sf ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
             ~/.local/bin/poetry install
       - save_cache:
           key: dev-deps-{{ checksum "poetry.lock" }}
