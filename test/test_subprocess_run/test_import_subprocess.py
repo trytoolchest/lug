@@ -97,6 +97,7 @@ def test_without_shell(number, **kwargs):
     run_value.check_returncode()
     return number
 
+
 @pytest.mark.unit
 @base_test_decorator
 @lug.run(image=BASE_TEST_IMAGE)
