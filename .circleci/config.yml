@@ -93,11 +93,11 @@ workflows:
               only:
                 - main
                 - staging
-#  deploy: # Skipping deploy to PyPI until we're ready
-#    jobs:
-#      - deploy-to-pypi:
-#          filters:
-#            branches:
-#              only:
-#                - main
-#                - staging
+  deploy:
+    jobs:
+      - deploy-to-pypi:
+          filters:
+            branches:
+              only:
+                - main
+                - staging
