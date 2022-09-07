@@ -28,8 +28,8 @@ Some software – especially in bioinformatics and machine learning – can't be
 in some cases, but for others a Docker container is the best solution. Lug makes the Docker container easier to work 
 with from Python.
 
-The same software is often resource intensive. Lug remote execution can give you more power for that software, and the 
-function that calls it.
+The same software is usually resource intensive. Lug can run on your computer, or it can automatically run the Python 
+function and Docker container in the cloud with [Toolchest](https://docs.trytoolchest.com/docs/pricing).
 
 ## Prerequisites
 
