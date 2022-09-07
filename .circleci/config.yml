@@ -24,6 +24,19 @@ jobs:
     parallelism: 8
     steps:
       - checkout
+      - restore_cache:
+          key: deps-{{ checksum "poetry.lock" }}
+      - run:
+          name: Install dependencies
+          command: |
+            cd ~/repo
+            curl -sSL https://install.python-poetry.org | python3 -
+            ~/.local/bin/poetry install
+      - save_cache:
+          key: deps-{{ checksum "poetry.lock" }}
+          paths:
+            - ~/.local/bin/poetry
+            - ~/.local/share/pypoetry
       - run:
           name: Run unit tests
           command: |
@@ -31,8 +44,6 @@ jobs:
             shopt -s globstar
             TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
             shopt -u globstar
-            curl -sSL https://install.python-poetry.org | python3 -
-            ~/.local/bin/poetry install
             mkdir -p lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
       - store_test_results:
@@ -46,6 +57,19 @@ jobs:
     parallelism: 4
     steps:
       - checkout
+      - restore_cache:
+          key: deps-{{ checksum "poetry.lock" }}
+      - run:
+          name: Install dependencies
+          command: |
+            cd ~/repo
+            curl -sSL https://install.python-poetry.org | python3 -
+            ~/.local/bin/poetry install
+      - save_cache:
+          key: deps-{{ checksum "poetry.lock" }}
+          paths:
+            - ~/.local/bin/poetry
+            - ~/.local/share/pypoetry
       - run:
           name: Run integration tests
           parallel: true
@@ -55,8 +79,6 @@ jobs:
             shopt -s globstar
             TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
             shopt -u globstar
-            curl -sSL https://install.python-poetry.org | python3 -
-            ~/.local/bin/poetry install
             mkdir -p lug-integration-test-results
             ~/.local/bin/poetry run pytest -v -m integration --durations=0 --junitxml=lug-integration-test-results/junit.xml $TESTFILES
           no_output_timeout: 1h
