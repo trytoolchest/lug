@@ -25,7 +25,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ checksum "poetry.lock" }}
+          key: dev-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
           command: |
@@ -34,7 +34,7 @@ jobs:
             ln -s ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
             ~/.local/bin/poetry install
       - save_cache:
-          key: deps-{{ checksum "poetry.lock" }}
+          key: dev-deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
             - ~/.local/bin
