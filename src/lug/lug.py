@@ -30,16 +30,17 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
             "docker",
             "exec",
             f"{user_docker_container_name}",
-            docker_shell_location,
-            "-c",
-            "'",
         ]
-        if type(args) is list:
-            raise NotImplementedError("Only subprocess with shell=True supported, add me!")
+        # add shell if running os.system or if specified in subprocess
+        if not pass_kwargs or kwargs.get("shell"):
+            docker_exec_args += [docker_shell_location, "-c"]
+        # append command specified in the system call
+        if type(args[0]) is list:
+            new_args = docker_exec_args + args[0]
         else:
             stringified_docker_command = ' '.join(docker_exec_args[2:])
             user_command = args[0].replace("'", r"'\''")  # sanitizes single quotes within sh command
-            new_args = stringified_docker_command + user_command + "'"
+            new_args = stringified_docker_command + f" '{user_command}'"
         if pass_kwargs:
             return original_function(new_args, **kwargs)
         return original_function(new_args)

@@ -84,3 +84,13 @@ def test_subfunction(number, **kwargs):
 
 def subfunction(name='World'):
     print(f"{name}!")
+
+
+@pytest.mark.unit
+@base_test_decorator
+@lug.run(image=BASE_TEST_IMAGE)
+def test_without_shell(number, **kwargs):
+    """Tests behavior when shell=True is not specified and a list is passed in as args."""
+    run_value = subprocess.Popen(["/bin/ls", "-l"])
+    print("return code:", run_value.wait())
+    return number
