@@ -9,22 +9,27 @@
         <img src="https://img.shields.io/discord/1016544715128176721?labelColor=212121&color=304FFE&label=discord" /></a>
 </p>
 
-**Lug**  is an open-source package that lets you run Python functions in any Docker container.
+Lug is an open source package that redirects Python calls to `subprocess.run`, `subprocess.Popen`, and `os.system` into 
+any Docker container. This makes these system-level Python calls behave the same way on different machines, without 
+requiring any changes to the Docker container.
 
-Lug runs the packaged function and Docker containers on your own computer or in the cloud.
-
+Lug also packages the Python function and Docker container, so you can easily run both in the cloud via Lug if needed. 
+This lets you give more computing power to the functions that need it.
 ## Highlights
 
-- 📦 `subprocess.run`, `subprocess.Popen`, and `os.system` run in your container – for the dependencies you can't install with pip.
+- 📦 `subprocess.run`, `subprocess.Popen`, and `os.system` run in your container – for the dependencies you can't 
+install with pip
 - 🐍 Use containers as-is, no need to add your Python version
 - ☁️ Run on your computer or in the cloud
 
-## What does Lug do?
-Lug redirects calls to `subprocess.run`, `subprocess.Popen`, and `os.system` to any Docker container. This makes these 
-system-level calls behave the same way on different machines.
+## Why use Lug?
 
-Lug also packages the Python function and Docker container, so you can run it on the cloud if needed. This lets you give 
-more computing power to the functions that need it.
+Some software – especially in bioinformatics and machine learning – can't be installed with `pip install`. Conda works 
+in some cases, but for others a Docker container is the best solution. Lug makes the Docker container easier to work 
+with from Python.
+
+The same software is often resource intensive. Lug remote execution can give you more power for that software, and the 
+function that calls it.
 
 ## Prerequisites
 
