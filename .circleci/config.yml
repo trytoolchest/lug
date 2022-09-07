@@ -37,7 +37,7 @@ jobs:
           paths:
             - ~/.local/share/pypoetry
             - ~/.local/bin/poetry
-            # The second path is a symlink and should be written afterwards
+            # The second path is a symlink and should be loaded afterwards
       - run:
           name: Run unit tests
           command: |
