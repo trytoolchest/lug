@@ -31,13 +31,13 @@ jobs:
           command: |
             cd ~/repo
             curl -sSL https://install.python-poetry.org | python3 -
+            ln -s ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
             ~/.local/bin/poetry install
       - save_cache:
           key: deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
-            - ~/.local/bin/poetry
-            # The second path is a symlink and should be loaded afterwards
+            - ~/.local/bin
       - run:
           name: Run unit tests
           command: |
@@ -70,8 +70,7 @@ jobs:
           key: deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
-            - ~/.local/bin/poetry
-            # The second path is a symlink and should be loaded afterwards
+            - ~/.local/bin
       - run:
           name: Run integration tests
           parallel: true
