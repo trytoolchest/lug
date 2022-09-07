@@ -3,7 +3,7 @@ import functools
 from os.path import basename
 import tempfile
 
-BASE_TEST_IMAGE = "ncbi/blast"
+BASE_TEST_IMAGE = "alpine:3.16.2"
 SLEEP_TIME = 5
 
 
