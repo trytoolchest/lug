@@ -25,7 +25,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: prv2-deps-{{ checksum "poetry.lock" }}
+          key: v1-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
           command: |
@@ -34,7 +34,7 @@ jobs:
             ln -sf ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
             ~/.local/bin/poetry install
       - save_cache:
-          key: prv2-deps-{{ checksum "poetry.lock" }}
+          key: v1-deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
             - ~/.local/bin
@@ -44,7 +44,7 @@ jobs:
           command: |
             cd ~/repo
             shopt -s globstar
-            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings --timings-type=classname)
+            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
             shopt -u globstar
             mkdir -p lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
@@ -60,7 +60,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: prv2-deps-{{ checksum "poetry.lock" }}
+          key: v1-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
           command: |
@@ -68,7 +68,7 @@ jobs:
             curl -sSL https://install.python-poetry.org | python3 -
             ~/.local/bin/poetry install
       - save_cache:
-          key: prv2-deps-{{ checksum "poetry.lock" }}
+          key: v1-deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
             - ~/.local/bin
