@@ -47,7 +47,7 @@ jobs:
             TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | circleci tests split --split-by=timings --timings-type=filename)
             shopt -u globstar
             mkdir -p ~/lug-unit-test-results
-            ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
+            ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml="~/lug-unit-test-results/junit.xml" $TESTFILES
       - store_test_results:
           path: ~/lug-unit-test-results
       - store_artifacts:
@@ -83,7 +83,7 @@ jobs:
             TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | circleci tests split --split-by=timings --timings-type=filename)
             shopt -u globstar
             mkdir -p ~/lug-integration-test-results
-            ~/.local/bin/poetry run pytest -v -m integration --durations=0 --junitxml=lug-integration-test-results/junit.xml $TESTFILES
+            ~/.local/bin/poetry run pytest -v -m integration --durations=0 --junitxml="~/lug-integration-test-results/junit.xml" $TESTFILES
           no_output_timeout: 1h
       - store_test_results:
           path: ~/lug-integration-test-results
