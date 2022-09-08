@@ -1,3 +1,4 @@
+import base64
 import functools
 import inspect
 import os
@@ -156,21 +157,26 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         cloudpickle.register_pickle_by_value(inspect.getmodule(func))
         cloudpickle.register_pickle_by_value(sys.modules[__name__])
         pickled_patch = cloudpickle.dumps(patch_system_calls)
+        encoded_pickled_patch = base64.encodebytes(pickled_patch)
         pickled_func = cloudpickle.dumps(func)
+        encoded_func = base64.encodebytes(pickled_func)
         pickled_args = cloudpickle.dumps(args)
+        encoded_args = base64.encodebytes(pickled_args)
         pickled_kwargs = cloudpickle.dumps(kwargs)
+        encoded_kwargs = base64.encodebytes(pickled_kwargs)
         cloudpickle.unregister_pickle_by_value(inspect.getmodule(func))
         cloudpickle.unregister_pickle_by_value(sys.modules[__name__])
+        fp.write("import base64\n")
         fp.write("import cloudpickle\n")
-        fp.write(f"func = cloudpickle.loads({pickled_func})\n")
-        fp.write(f"patch_system_calls = cloudpickle.loads({pickled_patch})\n")
-        fp.write(f"args = cloudpickle.loads({pickled_args})\n")
-        fp.write(f"kwargs = cloudpickle.loads({pickled_kwargs})\n")
+        fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
+        fp.write(f"patch_system_calls = cloudpickle.loads(base64.decodebytes({encoded_pickled_patch}))\n")
+        fp.write(f"args = cloudpickle.loads(base64.decodebytes({encoded_args}))\n")
+        fp.write(f"kwargs = cloudpickle.loads(base64.decodebytes({encoded_kwargs}))\n")
         fp.write(f"patch_system_calls(func, '{user_docker.container_name}', '{docker_shell_location}')\n")
         fp.write("print('Starting execution')\n")
         fp.write("result = func(*args, **kwargs)\n")
         fp.write(f"with open(f'./output/encoded_output_{output_uuid}', 'wb') as file:\n")
-        fp.write("\tfile.write(cloudpickle.dumps(result))\n")
+        fp.write("\tfile.write(base64.encodebytes(cloudpickle.dumps(result)))\n")
     return output_uuid
 
 
@@ -179,8 +185,10 @@ def parse_toolchest_run(output_path, output_uuid):
     if os.path.exists(encoded_output_path):
         with open(encoded_output_path, 'rb') as file:
             encoded_result = file.readline()
-            if encoded_result != b'':
-                result = cloudpickle.loads(encoded_result)
+            if encoded_result:
+                result = cloudpickle.loads(base64.decodebytes(encoded_result))
+            else:
+                result = None
         os.remove(encoded_output_path)
     return result
 
