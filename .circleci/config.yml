@@ -25,7 +25,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dev-deps-{{ checksum "poetry.lock" }}
+          key: prv2-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
           command: |
@@ -34,10 +34,11 @@ jobs:
             ln -sf ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
             ~/.local/bin/poetry install
       - save_cache:
-          key: dev-deps-{{ checksum "poetry.lock" }}
+          key: prv2-deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
             - ~/.local/bin
+            - ~/.cache/pypoetry
       - run:
           name: Run unit tests
           command: |
@@ -59,7 +60,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dev-deps-{{ checksum "poetry.lock" }}
+          key: prv2-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
           command: |
@@ -67,10 +68,11 @@ jobs:
             curl -sSL https://install.python-poetry.org | python3 -
             ~/.local/bin/poetry install
       - save_cache:
-          key: dev-deps-{{ checksum "poetry.lock" }}
+          key: prv2-deps-{{ checksum "poetry.lock" }}
           paths:
             - ~/.local/share/pypoetry
             - ~/.local/bin
+            - ~/.cache/pypoetry
       - run:
           name: Run integration tests
           parallel: true
