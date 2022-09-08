@@ -44,12 +44,11 @@ jobs:
           command: |
             cd ~/repo
             shopt -s globstar
-            # converts test filepaths (test/test_subdir/test_file.py) to classnames (test.test_subdir.test_file), 
+            # Converts test filepaths (test/test_subdir/test_file.py) to classnames (test.test_subdir.test_file), 
             # then splits by classname (to account for the pytested function potentially being in a different file)
+            # Output split on classnames looks like: test.test_file1 test.test_file2 test.test_file3
             TESTCLASSNAMES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | sed -e 's/\.[^.]*$//' -e 's/\//\./g' | circleci tests split --split-by=timings --timings-type=classname)
-            echo $TESTCLASSNAMES
-            TESTFILES=$(echo $TESTCLASSNAMES | sed -e 's/\./\//g' -e 's/$/\.py/')
-            echo $TESTFILES
+            TESTFILES=$(echo $TESTCLASSNAMES | sed -e 's/\./\//g' -e 's/$/\.py/' -e 's/ /\.py /g')
             shopt -u globstar
             mkdir -p ~/lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml="~/lug-unit-test-results/junit.xml" $TESTFILES
