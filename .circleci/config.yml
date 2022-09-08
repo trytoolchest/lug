@@ -24,15 +24,28 @@ jobs:
     parallelism: 8
     steps:
       - checkout
+      - restore_cache:
+          key: v1-deps-{{ checksum "poetry.lock" }}
+      - run:
+          name: Install dependencies
+          command: |
+            cd ~/repo
+            curl -sSL https://install.python-poetry.org | python3 -
+            ln -sf ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
+            ~/.local/bin/poetry install
+      - save_cache:
+          key: v1-deps-{{ checksum "poetry.lock" }}
+          paths:
+            - ~/.local/share/pypoetry
+            - ~/.local/bin
+            - ~/.cache/pypoetry
       - run:
           name: Run unit tests
           command: |
             cd ~/repo
             shopt -s globstar
-            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
+            TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | circleci tests split --split-by=timings --timings-type=filename)
             shopt -u globstar
-            curl -sSL https://install.python-poetry.org | python3 -
-            ~/.local/bin/poetry install
             mkdir -p lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
       - store_test_results:
@@ -46,6 +59,20 @@ jobs:
     parallelism: 4
     steps:
       - checkout
+      - restore_cache:
+          key: v1-deps-{{ checksum "poetry.lock" }}
+      - run:
+          name: Install dependencies
+          command: |
+            cd ~/repo
+            curl -sSL https://install.python-poetry.org | python3 -
+            ~/.local/bin/poetry install
+      - save_cache:
+          key: v1-deps-{{ checksum "poetry.lock" }}
+          paths:
+            - ~/.local/share/pypoetry
+            - ~/.local/bin
+            - ~/.cache/pypoetry
       - run:
           name: Run integration tests
           parallel: true
@@ -53,10 +80,8 @@ jobs:
             cd ~/repo
             export DEPLOY_ENVIRONMENT=$([[ $CIRCLE_BRANCH = main ]] && echo production || echo staging)
             shopt -s globstar
-            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
+            TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | circleci tests split --split-by=timings --timings-type=filename)
             shopt -u globstar
-            curl -sSL https://install.python-poetry.org | python3 -
-            ~/.local/bin/poetry install
             mkdir -p lug-integration-test-results
             ~/.local/bin/poetry run pytest -v -m integration --durations=0 --junitxml=lug-integration-test-results/junit.xml $TESTFILES
           no_output_timeout: 1h
