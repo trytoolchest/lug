@@ -44,7 +44,7 @@ jobs:
           command: |
             cd ~/repo
             shopt -s globstar
-            TESTFILES=$(circleci tests glob test/test*.py test/**/test*.py | circleci tests split --split-by=timings)
+            TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | circleci tests split --split-by=timings --timings-type=filename)
             shopt -u globstar
             mkdir -p lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
@@ -80,7 +80,7 @@ jobs:
             cd ~/repo
             export DEPLOY_ENVIRONMENT=$([[ $CIRCLE_BRANCH = main ]] && echo production || echo staging)
             shopt -s globstar
-            TESTFILES=$(circleci tests glob test/test*.py test/**/test*.py | circleci tests split --split-by=timings)
+            TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | circleci tests split --split-by=timings --timings-type=filename)
             shopt -u globstar
             mkdir -p lug-integration-test-results
             ~/.local/bin/poetry run pytest -v -m integration --durations=0 --junitxml=lug-integration-test-results/junit.xml $TESTFILES
