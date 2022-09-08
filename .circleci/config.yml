@@ -46,7 +46,8 @@ jobs:
             shopt -s globstar
             # converts test filepaths (test/test_subdir/test_file.py) to classnames (test.test_subdir.test_file), 
             # then splits by classname (to account for the pytested function potentially being in a different file)
-            TESTFILES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | sed -e 's/\.[^.]*$//' -e 's/\//\./g' | circleci tests split --split-by=timings --timings-type=classname)
+            TESTCLASSNAMES=$(circleci tests glob "test/test*.py" "test/**/test*.py" | sed -e 's/\.[^.]*$//' -e 's/\//\./g' | circleci tests split --split-by=timings --timings-type=classname)
+            TESTFILES=$(echo $TESTCLASSNAMES | sed -e 's/\./\//' -e 's/$/.py/g')
             shopt -u globstar
             mkdir -p ~/lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml="~/lug-unit-test-results/junit.xml" $TESTFILES
