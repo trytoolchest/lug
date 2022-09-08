@@ -8,7 +8,7 @@ import pytest
 import lug
 from test.base import BASE_TEST_IMAGE, SLEEP_TIME, base_test_decorator, \
     error_test_decorator, io_test_decorator
-from test.test_multiple_imports_helper import multiply_some_constants
+from test.multiple_imports_helper import multiply_some_constants
 
 
 @pytest.mark.unit
