@@ -44,7 +44,7 @@ jobs:
           command: |
             cd ~/repo
             shopt -s globstar
-            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings)
+            TESTFILES=$(circleci tests glob test/**/test*.py | circleci tests split --split-by=timings --timings-type=classname)
             shopt -u globstar
             mkdir -p lug-unit-test-results
             ~/.local/bin/poetry run pytest -v -m "unit or unit_io" --durations=0 --junitxml=lug-unit-test-results/junit.xml $TESTFILES
