@@ -22,8 +22,9 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
     Patch os.system, subprocess.run, or subprocess.Popen
     """
 
-    def run(*args, **kwargs):
+    def patched_function(*args, **kwargs):
         """Lug-replaced function."""
+        print("running patched function")
         docker_exec_args = [
             "docker",
             "exec",
@@ -46,9 +47,9 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
         if pass_kwargs:
             return original_function(new_args, **kwargs)
         return original_function(new_args)
-    run.is_lug_function = True
-    run.lug_original_function = original_function
-    return run
+    patched_function.is_lug_function = True
+    patched_function.lug_original_function = original_function
+    return patched_function
 
 
 def find_and_replace_function(member, unique_docstring, replace_with, depth=0, unpatch=False):
@@ -62,10 +63,13 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, u
                 continue
             this_one = find_and_replace_function(sub_attribute, unique_docstring, replace_with, depth + 1, unpatch)
             if this_one:
+                print("this one")
                 if unpatch:
                     member[name] = member[name].lug_original_function
                 else:
                     member[name] = replace_with
+                    print("patching", member, name)
+                    print("patched:", getattr(member[name], "is_lug_function"))
                 return False
     elif isinstance(member, types.ModuleType):
         # import subprocess -> subprocess is a module
@@ -79,11 +83,14 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, u
                 continue
             this_one = find_and_replace_function(sub_member, unique_docstring, replace_with, depth + 1, unpatch)
             if this_one:
+                print("this_one")
                 if unpatch:
                     patched_function = getattr(member, name)
                     setattr(member, name, patched_function.lug_original_function)
                 else:
                     setattr(member, name, replace_with)
+                    print("patching", member, name)
+                    print("patched:", getattr(getattr(member, name), "is_lug_function"))
                 return False
         return False
     else:
@@ -95,6 +102,7 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, u
                 if hasattr(member, "lug_original_function"):
                     return True
             elif hasattr(member, "__doc__") and unique_docstring in member.__doc__:
+                print("found", member)
                 return True
         except (TypeError, ModuleNotFoundError):
             return False
@@ -231,6 +239,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
 
 def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_location):
     # todo: make sure the docker containers don't exit shortly after spawn, propagate errors
+    print("executing locally")
     mount = os.path.realpath(mount)
     # Run user container
     user_docker.container = client.containers.run(

@@ -11,7 +11,8 @@ from test.base import BASE_TEST_IMAGE
 @lug.run(image=BASE_TEST_IMAGE, mount="./temp_test_lug_mount")
 def function_with_different_mount(number):
     command = "echo hello world > /lug/output.txt"
-    os.system(command)
+    return_code = os.system(command)
+    assert return_code == 0
     return number
 
 

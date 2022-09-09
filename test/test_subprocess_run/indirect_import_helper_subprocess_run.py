@@ -2,4 +2,5 @@ import subprocess
 
 
 def patched_subprocess_run_subfunction():
-    subprocess.run("echo hello world", shell=True)
+    proc = subprocess.run("echo hello world", shell=True)
+    assert proc.returncode == 0

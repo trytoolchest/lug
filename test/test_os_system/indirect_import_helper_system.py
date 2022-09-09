@@ -2,4 +2,5 @@ from os import system
 
 
 def patched_system_subfunction():
-    system("echo hello world")
+    return_code = system("echo hello world")
+    assert return_code == 0
