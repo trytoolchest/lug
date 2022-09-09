@@ -70,7 +70,7 @@ def test_from_time_sleep_script(number, **kwargs):
 def test_sleep_script(number, **kwargs):
     time.sleep(SLEEP_TIME)
     return_code = system("echo $PATH")
-    assert return_code == 0
+    assert return_code == 256  # return code of 1 is encoded as an "exit status" of 256
     return number
 
 

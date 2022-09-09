@@ -18,7 +18,7 @@ def test_expected_error():
     """Tests lug behavior on return value + error propagation
     when an error is hit within the function body"""
     return_code = os.system("exit 1")
-    assert return_code == 1
+    assert return_code == 256  # return code of 1 is encoded as an "exit status" of 256
     if return_code != 0:
         raise RuntimeError("Nonzero exit code (expected)")
 
