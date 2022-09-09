@@ -29,8 +29,8 @@ def test_expected_error():
 def test_concatenate_text_io(input_basename, output_basename, number, text="a", **kwargs):
     """Tests behavior with input and output files (mounted at /lug)"""
     proc = subprocess.Popen(f"echo '{text}' > added.txt; cat /lug/{input_basename} added.txt > "
-                              f"/lug/{output_basename}",
-                              shell=True)
+                            f"/lug/{output_basename}",
+                            shell=True)
     assert proc.wait() == 0
     return number
 
