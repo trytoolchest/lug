@@ -151,9 +151,27 @@ def unpatch_system_calls(func):
     )
 
 
+def get_modules_to_register(func):
+    modules_to_register = []
+    for global_var in func.__globals__.values():
+        is_module = isinstance(global_var, types.ModuleType)
+        if not is_module:
+            continue
+        var_name = getattr(global_var, "__name__")
+        is_builtin_module = var_name in sys.builtin_module_names
+        is_stdlib_module = var_name in sys.stdlib_module_names
+        if not is_builtin_module and not is_stdlib_module:
+            print(global_var)  # for testing
+            modules_to_register.append(global_var)
+    return modules_to_register
+
+
 def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location):
     output_uuid = uuid.uuid4()
     with open(temp_input.name, 'w') as fp:
+        modules_to_register = get_modules_to_register(func)
+        for module in modules_to_register:
+            cloudpickle.register_pickle_by_value(module)
         cloudpickle.register_pickle_by_value(inspect.getmodule(func))
         cloudpickle.register_pickle_by_value(sys.modules[__name__])
         pickled_patch = cloudpickle.dumps(patch_system_calls)
@@ -164,6 +182,8 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         encoded_args = base64.encodebytes(pickled_args)
         pickled_kwargs = cloudpickle.dumps(kwargs)
         encoded_kwargs = base64.encodebytes(pickled_kwargs)
+        for module in modules_to_register:
+            cloudpickle.unregister_pickle_by_value(module)
         cloudpickle.unregister_pickle_by_value(inspect.getmodule(func))
         cloudpickle.unregister_pickle_by_value(sys.modules[__name__])
         fp.write("import base64\n")
