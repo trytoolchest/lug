@@ -8,7 +8,7 @@ import pytest
 import lug
 from test.base import BASE_TEST_IMAGE, SLEEP_TIME, base_test_decorator, \
     error_test_decorator, io_test_decorator
-from test.multiple_imports_helper import multiply_some_constants
+from test.multiple_imports_helper import function_that_uses_imported_modules
 
 
 @pytest.mark.unit
@@ -37,8 +37,9 @@ def test_concatenate_text_io(input_basename, output_basename, number, text="a", 
 def test_multiple_imports(number, **kwargs):
     """Tests importing multiple module dependencies, including non-built-ins and ones located in other files."""
     # This function uses imports of `random` from this module
-    # and `math` + `numpy` (non-built-in) from a helper module.
-    os.system(f"expr {random.getrandbits(1)} + {multiply_some_constants(number)}")
+    # and `math` + `idna` (non-built-in) from a helper module.
+    example_number, example_string = function_that_uses_imported_modules(number)
+    os.system(f"expr {random.getrandbits(1)} + {example_number}; echo {example_string}")
     return number
 
 

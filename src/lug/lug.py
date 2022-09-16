@@ -153,17 +153,61 @@ def unpatch_system_calls(func):
 
 def get_modules_to_register(func):
     modules_to_register = []
-    for global_var in func.__globals__.values():
-        is_module = isinstance(global_var, types.ModuleType)
-        if not is_module:
-            continue
-        var_name = getattr(global_var, "__name__")
-        is_builtin_module = var_name in sys.builtin_module_names
-        is_stdlib_module = var_name in sys.stdlib_module_names
-        if not is_builtin_module and not is_stdlib_module:
-            print(global_var)  # for testing
-            modules_to_register.append(global_var)
+    # Skip test and internal unpicklable Lug modules
+    modules_to_skip = {
+        "pytest",
+        "lug",
+        "cloudpickle",
+        # "toolchest_client",
+        "docker"
+    }
+    search_for_modules_to_register(
+        member=func,
+        modules_to_register=modules_to_register,
+        discovered_module_names=modules_to_skip,
+    )
     return modules_to_register
+
+
+def search_for_modules_to_register(member, modules_to_register, discovered_module_names, depth=0):
+    """Recursively search for modules to register."""
+    if depth > 3:
+        return
+    is_module = isinstance(member, types.ModuleType)
+    is_function = isinstance(member, types.FunctionType)
+    if is_function:
+        for global_var in member.__globals__.values():
+            search_for_modules_to_register(
+                member=global_var,
+                modules_to_register=modules_to_register,
+                discovered_module_names=discovered_module_names,
+                depth=depth + 1
+            )
+        function_parent_module = inspect.getmodule(member)
+        search_for_modules_to_register(
+            member=function_parent_module,
+            modules_to_register=modules_to_register,
+            discovered_module_names=discovered_module_names,
+            depth=depth + 1
+        )
+    elif is_module:
+        module_name = getattr(member, "__name__")
+        if module_name in discovered_module_names:
+            return
+        else:
+            discovered_module_names.add(module_name)
+        is_builtin_module = module_name in sys.builtin_module_names
+        is_stdlib_module = module_name in sys.stdlib_module_names
+        if not is_builtin_module and not is_stdlib_module:
+            modules_to_register.append(member)
+        if hasattr(member, "__globals__"):
+            for global_var in member.__globals__.values():
+                search_for_modules_to_register(
+                    member=global_var,
+                    modules_to_register=modules_to_register,
+                    discovered_module_names=discovered_module_names,
+                    depth=depth + 1,
+                )
 
 
 def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location):
@@ -171,21 +215,18 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
     with open(temp_input.name, 'w') as fp:
         modules_to_register = get_modules_to_register(func)
         for module in modules_to_register:
+            print("registering apparent module", module)
             cloudpickle.register_pickle_by_value(module)
-        cloudpickle.register_pickle_by_value(inspect.getmodule(func))
-        cloudpickle.register_pickle_by_value(sys.modules[__name__])
-        pickled_patch = cloudpickle.dumps(patch_system_calls)
-        encoded_pickled_patch = base64.encodebytes(pickled_patch)
         pickled_func = cloudpickle.dumps(func)
         encoded_func = base64.encodebytes(pickled_func)
+        pickled_patch = cloudpickle.dumps(patch_system_calls)
+        encoded_pickled_patch = base64.encodebytes(pickled_patch)
         pickled_args = cloudpickle.dumps(args)
         encoded_args = base64.encodebytes(pickled_args)
         pickled_kwargs = cloudpickle.dumps(kwargs)
         encoded_kwargs = base64.encodebytes(pickled_kwargs)
         for module in modules_to_register:
             cloudpickle.unregister_pickle_by_value(module)
-        cloudpickle.unregister_pickle_by_value(inspect.getmodule(func))
-        cloudpickle.unregister_pickle_by_value(sys.modules[__name__])
         fp.write("import base64\n")
         fp.write("import cloudpickle\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
@@ -226,7 +267,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         if remote_output_directory is None:
             temp_directory = tempfile.TemporaryDirectory(dir=tmp_dir)
         output_directory = remote_output_directory or temp_directory.name
-        run = toolchest_client.lug(
+        remote_run = toolchest_client.lug(
             custom_docker_image_id=image,
             tool_version=python_version,
             inputs=remote_inputs,
@@ -236,7 +277,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             instance_type=remote_instance_type,
             volume_size=volume_size,
         )
-        status_response = run.get_status(return_error=True)
+        status_response = remote_run.get_status(return_error=True)
         status = status_response['status']
         if status == 'failed':
             raise ValueError(f"Remote execution failed due to: {status_response['error_message']}")

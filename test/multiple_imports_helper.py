@@ -1,7 +1,7 @@
 import math
 
-import numpy as np
+import idna
 
 
-def multiply_some_constants(x):
-    return int(math.pi * np.euler_gamma * x)
+def function_that_uses_imported_modules(x):
+    return int(math.pi * x), idna.encode('ドメイン.テスト')
