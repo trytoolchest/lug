@@ -24,4 +24,3 @@ def test_remote_execution_with_imports():
 def test_remote_call_sans_pytest_decorator():
     results = test_remote_execution_with_imports()
     assert results == 'bxn--eckwd4c7c.xn--zckzah\n'
-

@@ -17,7 +17,3 @@ def lug_simulating_decorator(
         return func(*args, **kwargs)
 
     return inner
-
-
-
-
