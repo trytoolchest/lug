@@ -5,7 +5,7 @@ import shutil
 import pytest
 
 import lug
-from test.base import BASE_TEST_IMAGE
+BASE_TEST_IMAGE = "alpine:3.16.2"
 
 
 @lug.run(image=BASE_TEST_IMAGE, mount="./temp_test_lug_mount")

@@ -1,0 +1,130 @@
+import ast
+import glob
+import inspect
+import sys
+import types
+import os
+
+from .constants import STDLIB_MODULE_NAMES
+
+
+def parse_ast_for_file(python_file_path):
+    opened_file = open(python_file_path).read()
+    parsed_ast = ast.parse(opened_file)
+    return [node for node in ast.walk(parsed_ast)]
+
+
+def get_registered_module_imports(modules_to_register, modules_to_skip):
+    filtered_sys_modules = []
+    for module_name, module_value in sys.modules.items():
+        is_builtin_module = module_name in sys.builtin_module_names
+        is_stdlib_module = module_name in STDLIB_MODULE_NAMES
+        if not (is_builtin_module or is_stdlib_module):
+            filtered_sys_modules.append(module_name)
+
+    deep_modules = set()
+    for module in modules_to_register:
+        all_ast_nodes = []
+
+        if not hasattr(module, "__path__"):
+            if not hasattr(module, "__file__"):
+                continue
+            all_ast_nodes = parse_ast_for_file(
+                python_file_path=getattr(module, "__file__")
+            )
+        else:
+            module_path = getattr(module, "__path__")
+            if len(module_path) == 1:  # Most packaged modules have a source directory
+                python_files = glob.glob(os.path.join(module_path[0], "**.py"))
+                python_files += glob.glob(os.path.join(module_path[0], "**/*.py"))
+            elif len(module_path) == 0:
+                module_file = getattr(module, "__file__")
+                python_files = [module_file]
+            else:
+                raise ValueError("Lug requires source code to get dependencies from module: ", module)
+
+            for python_file_path in python_files:
+                all_ast_nodes += parse_ast_for_file(python_file_path)
+
+        ast_direct_imports = []
+        ast_renamed_imports = []
+        for node in all_ast_nodes:
+            if isinstance(node, ast.Import):
+                ast_direct_imports.append(node)
+            if isinstance(node, ast.ImportFrom):
+                ast_renamed_imports.append(node)
+        for renamed_import in ast_renamed_imports:
+            module_name = renamed_import.module
+            if module_name in filtered_sys_modules and module_name not in modules_to_skip:
+                if "_pytest" in module.__name__ or "url" in module.__name__:
+                    continue
+                deep_modules.add(sys.modules[module_name])
+        for direct_import in ast_direct_imports:
+            module_name = direct_import.names[0].name
+            if module_name in filtered_sys_modules and module_name not in modules_to_skip:
+                if "_pytest" in module.__name__ or "url" in module.__name__:
+                    continue
+                deep_modules.add(sys.modules[module_name])
+    return deep_modules
+
+
+def search_for_modules_to_register(member, modules_to_register, discovered_module_names, depth=0):
+    """Recursively search for modules to register."""
+    if depth > 3:
+        return
+    is_module = isinstance(member, types.ModuleType)
+    is_function = isinstance(member, types.FunctionType)
+    if is_function:
+        for global_var in member.__globals__.values():
+            search_for_modules_to_register(
+                member=global_var,
+                modules_to_register=modules_to_register,
+                discovered_module_names=discovered_module_names,
+                depth=depth + 1
+            )
+        function_parent_module = inspect.getmodule(member)
+        search_for_modules_to_register(
+            member=function_parent_module,
+            modules_to_register=modules_to_register,
+            discovered_module_names=discovered_module_names,
+            depth=depth + 1
+        )
+    elif is_module:
+        module_name = getattr(member, "__name__")
+        if module_name in discovered_module_names:
+            return
+        else:
+            discovered_module_names.add(module_name)
+        is_builtin_module = module_name in sys.builtin_module_names
+        is_stdlib_module = module_name in STDLIB_MODULE_NAMES
+        if not is_builtin_module and not is_stdlib_module:
+            modules_to_register.append(member)
+        if hasattr(member, "__globals__"):
+            for global_var in member.__globals__.values():
+                search_for_modules_to_register(
+                    member=global_var,
+                    modules_to_register=modules_to_register,
+                    discovered_module_names=discovered_module_names,
+                    depth=depth + 1,
+                )
+
+
+def get_modules_to_register(
+        func,
+        deep=False,
+        modules_to_skip=frozenset({"pytest", "lug", "cloudpickle", "docker", "toolchest_client"})
+):
+    modules_to_register = []
+    search_for_modules_to_register(
+        member=func,
+        modules_to_register=modules_to_register,
+        discovered_module_names=set(modules_to_skip),  # Skips unpicklable internal modules
+    )
+    deduplicated_modules_to_register = set(modules_to_register)
+    if not deep:
+        return deduplicated_modules_to_register
+    additional_modules = get_registered_module_imports(
+        deduplicated_modules_to_register,
+        modules_to_skip=modules_to_skip,
+    )
+    return deduplicated_modules_to_register.union(additional_modules)

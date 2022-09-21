@@ -6,9 +6,8 @@ from time import sleep
 import pytest
 
 import lug
-from test.base import BASE_TEST_IMAGE, SLEEP_TIME, base_test_decorator, \
-    error_test_decorator, io_test_decorator
-from test.multiple_imports_helper import function_that_uses_imported_modules
+from ..base import BASE_TEST_IMAGE, SLEEP_TIME, base_test_decorator, error_test_decorator, io_test_decorator
+from ..multiple_imports_helper import function_that_uses_imported_modules
 
 
 @pytest.mark.unit

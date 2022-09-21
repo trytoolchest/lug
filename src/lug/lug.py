@@ -14,6 +14,7 @@ import tempfile
 import toolchest_client
 
 from .containers import DockerContainer
+from .module_detection import get_modules_to_register
 
 
 def patch_system_call(user_docker_container_name=None, original_function=None, pass_kwargs=True,
@@ -51,16 +52,23 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
     return run
 
 
-def find_and_replace_function(member, unique_docstring, replace_with, depth=0, unpatch=False):
-    if depth > 3:
+def find_and_replace_function(member, unique_docstring, replace_with, depth=0, max_depth=3, unpatch=False):
+    if depth > max_depth:
         return
     if type(member) in [str, type(None)]:
         return
     elif type(member) == dict:
-        for name, sub_attribute in member.items():
+        for name, sub_attribute in member.copy().items():  # The dict can change size, so make a copy for iteration
             if name == "__builtins__":
                 continue
-            this_one = find_and_replace_function(sub_attribute, unique_docstring, replace_with, depth + 1, unpatch)
+            this_one = find_and_replace_function(
+                member=sub_attribute,
+                unique_docstring=unique_docstring,
+                replace_with=replace_with,
+                depth=depth + 1,
+                max_depth=max_depth,
+                unpatch=unpatch,
+            )
             if this_one:
                 if unpatch:
                     member[name] = member[name].lug_original_function
@@ -77,7 +85,14 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, u
         for name, sub_member in members:
             if name == "__builtins__":
                 continue
-            this_one = find_and_replace_function(sub_member, unique_docstring, replace_with, depth + 1, unpatch)
+            this_one = find_and_replace_function(
+                member=sub_member,
+                unique_docstring=unique_docstring,
+                replace_with=replace_with,
+                depth=depth + 1,
+                max_depth=max_depth,
+                unpatch=unpatch
+            )
             if this_one:
                 if unpatch:
                     patched_function = getattr(member, name)
@@ -87,15 +102,22 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, u
                 return False
         return False
     else:
-        # Base case; catches:
-        # os.system (a "builtin_function_or_method")
-        # subprocess.run (a "function")
         try:
             if unpatch:
                 if hasattr(member, "lug_original_function"):
                     return True
-            elif hasattr(member, "__doc__") and unique_docstring in member.__doc__:
+            elif hasattr(member, "__doc__") and member.__doc__ and unique_docstring in member.__doc__:
                 return True
+            elif isinstance(member, types.FunctionType):
+                # Explore the globals of any imported function
+                find_and_replace_function(
+                    member=member.__globals__,
+                    unique_docstring=unique_docstring,
+                    replace_with=replace_with,
+                    depth=depth + 1,
+                    max_depth=5,  # If we're exploring a function globals, increase max depth to five
+                    unpatch=unpatch,
+                )
         except (TypeError, ModuleNotFoundError):
             return False
         return False
@@ -151,72 +173,13 @@ def unpatch_system_calls(func):
     )
 
 
-def get_modules_to_register(func):
-    modules_to_register = []
-    # Skip test and internal unpicklable Lug modules
-    modules_to_skip = {
-        "pytest",
-        "lug",
-        "cloudpickle",
-        # "toolchest_client",
-        "docker"
-    }
-    search_for_modules_to_register(
-        member=func,
-        modules_to_register=modules_to_register,
-        discovered_module_names=modules_to_skip,
-    )
-    return modules_to_register
-
-
-def search_for_modules_to_register(member, modules_to_register, discovered_module_names, depth=0):
-    """Recursively search for modules to register."""
-    if depth > 3:
-        return
-    is_module = isinstance(member, types.ModuleType)
-    is_function = isinstance(member, types.FunctionType)
-    if is_function:
-        for global_var in member.__globals__.values():
-            search_for_modules_to_register(
-                member=global_var,
-                modules_to_register=modules_to_register,
-                discovered_module_names=discovered_module_names,
-                depth=depth + 1
-            )
-        function_parent_module = inspect.getmodule(member)
-        search_for_modules_to_register(
-            member=function_parent_module,
-            modules_to_register=modules_to_register,
-            discovered_module_names=discovered_module_names,
-            depth=depth + 1
-        )
-    elif is_module:
-        module_name = getattr(member, "__name__")
-        if module_name in discovered_module_names:
-            return
-        else:
-            discovered_module_names.add(module_name)
-        is_builtin_module = module_name in sys.builtin_module_names
-        is_stdlib_module = module_name in sys.stdlib_module_names
-        if not is_builtin_module and not is_stdlib_module:
-            modules_to_register.append(member)
-        if hasattr(member, "__globals__"):
-            for global_var in member.__globals__.values():
-                search_for_modules_to_register(
-                    member=global_var,
-                    modules_to_register=modules_to_register,
-                    discovered_module_names=discovered_module_names,
-                    depth=depth + 1,
-                )
-
-
-def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location):
+def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies):
     output_uuid = uuid.uuid4()
     with open(temp_input.name, 'w') as fp:
-        modules_to_register = get_modules_to_register(func)
-        for module in modules_to_register:
-            print("registering apparent module", module)
-            cloudpickle.register_pickle_by_value(module)
+        if serialize_dependencies:
+            modules_to_register = get_modules_to_register(func)
+            for module in modules_to_register:
+                cloudpickle.register_pickle_by_value(module)
         pickled_func = cloudpickle.dumps(func)
         encoded_func = base64.encodebytes(pickled_func)
         pickled_patch = cloudpickle.dumps(patch_system_calls)
@@ -225,8 +188,9 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         encoded_args = base64.encodebytes(pickled_args)
         pickled_kwargs = cloudpickle.dumps(kwargs)
         encoded_kwargs = base64.encodebytes(pickled_kwargs)
-        for module in modules_to_register:
-            cloudpickle.unregister_pickle_by_value(module)
+        if serialize_dependencies:
+            for module in modules_to_register:
+                cloudpickle.unregister_pickle_by_value(module)
         fp.write("import base64\n")
         fp.write("import cloudpickle\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
@@ -255,12 +219,21 @@ def parse_toolchest_run(output_path, output_uuid):
 
 
 def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, tmp_dir, image, remote_inputs,
-                   user_docker, remote_instance_type, volume_size, python_version, docker_shell_location):
+                   user_docker, remote_instance_type, volume_size, python_version, docker_shell_location,
+                   serialize_dependencies):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
     temp_input = tempfile.NamedTemporaryFile(dir=tmp_dir)
     temp_directory = None
-    output_uuid = create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location)
+    output_uuid = create_python_script(
+        func=func,
+        args=args,
+        kwargs=kwargs,
+        temp_input=temp_input,
+        user_docker=user_docker,
+        docker_shell_location=docker_shell_location,
+        serialize_dependencies=serialize_dependencies,
+    )
     try:
         if toolchest_key:
             toolchest_client.set_key(toolchest_key)
@@ -314,7 +287,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
 
 def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
-        volume_size=None):
+        volume_size=None, serialize_dependencies=False, deep_serialize=False):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
@@ -335,16 +308,18 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
 
             try:
                 if remote:
-                    result = execute_remote(func=func, args=args, kwargs=kwargs,
-                                            image=image, remote_inputs=remote_inputs, toolchest_key=toolchest_key,
-                                            remote_output_directory=remote_output_directory, tmp_dir=tmp_dir,
-                                            user_docker=user_docker, remote_instance_type=remote_instance_type,
-                                            volume_size=volume_size, python_version=python_version,
-                                            docker_shell_location=docker_shell_location)
+                    result = execute_remote(
+                        func=func, args=args, kwargs=kwargs, image=image, remote_inputs=remote_inputs,
+                        toolchest_key=toolchest_key, remote_output_directory=remote_output_directory, tmp_dir=tmp_dir,
+                        user_docker=user_docker, remote_instance_type=remote_instance_type, volume_size=volume_size,
+                        python_version=python_version, docker_shell_location=docker_shell_location,
+                        serialize_dependencies=serialize_dependencies
+                    )
                 else:
-                    result = execute_local(func=func, args=args, kwargs=kwargs,
-                                           mount=mount, client=client, user_docker=user_docker,
-                                           docker_shell_location=docker_shell_location)
+                    result = execute_local(
+                        func=func, args=args, kwargs=kwargs, mount=mount, client=client, user_docker=user_docker,
+                        docker_shell_location=docker_shell_location
+                    )
             finally:
                 if user_docker is not None and user_docker.container is not None:
                     user_docker.container.reload()
