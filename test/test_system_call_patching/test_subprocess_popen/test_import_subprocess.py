@@ -24,7 +24,7 @@ def test_expected_error():
 @pytest.mark.unit_io
 @io_test_decorator
 @lug.run(image=BASE_TEST_IMAGE)
-def test_concatenate_text_io(input_basename, output_basename, number, text="a", **kwargs):
+def test_concatenate_text_io_argh(input_basename, output_basename, number, text="a", **kwargs):
     """Tests behavior with input and output files (mounted at /lug)"""
     subprocess.Popen(f"echo '{text}' > added.txt; cat /lug/{input_basename} added.txt > /lug/{output_basename}",
                      shell=True)

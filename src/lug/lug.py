@@ -52,7 +52,7 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
     return run
 
 
-def find_and_replace_function(member, unique_docstring, replace_with, depth=0, max_depth=3, unpatch=False):
+def find_and_replace_function(member, unique_docstring, replace_with, patched_functions, depth=0, max_depth=3):
     if depth > max_depth:
         return
     if type(member) in [str, type(None)]:
@@ -65,15 +65,18 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, m
                 member=sub_attribute,
                 unique_docstring=unique_docstring,
                 replace_with=replace_with,
+                patched_functions=patched_functions,
                 depth=depth + 1,
                 max_depth=max_depth,
-                unpatch=unpatch,
             )
             if this_one:
-                if unpatch:
-                    member[name] = member[name].lug_original_function
-                else:
-                    member[name] = replace_with
+                patched_functions.append({
+                    "member": member,
+                    "attribute_name": name,
+                    "original_value": replace_with.lug_original_function,
+                    "is_dictionary": True,
+                })
+                member[name] = replace_with
                 return False
     elif isinstance(member, types.ModuleType):
         # import subprocess -> subprocess is a module
@@ -89,24 +92,23 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, m
                 member=sub_member,
                 unique_docstring=unique_docstring,
                 replace_with=replace_with,
+                patched_functions=patched_functions,
                 depth=depth + 1,
                 max_depth=max_depth,
-                unpatch=unpatch
             )
             if this_one:
-                if unpatch:
-                    patched_function = getattr(member, name)
-                    setattr(member, name, patched_function.lug_original_function)
-                else:
-                    setattr(member, name, replace_with)
+                patched_functions.append({
+                    "member": member,
+                    "attribute_name": name,
+                    "original_value": getattr(member, name),
+                    "is_dictionary": False,
+                })
+                setattr(member, name, replace_with)
                 return False
         return False
     else:
         try:
-            if unpatch:
-                if hasattr(member, "lug_original_function"):
-                    return True
-            elif hasattr(member, "__doc__") and member.__doc__ and unique_docstring in member.__doc__:
+            if hasattr(member, "__doc__") and member.__doc__ and unique_docstring in member.__doc__:
                 return True
             elif isinstance(member, types.FunctionType):
                 # Explore the globals of any imported function
@@ -114,10 +116,11 @@ def find_and_replace_function(member, unique_docstring, replace_with, depth=0, m
                     member=member.__globals__,
                     unique_docstring=unique_docstring,
                     replace_with=replace_with,
+                    patched_functions=patched_functions,
                     depth=depth + 1,
                     max_depth=5,  # If we're exploring a function globals, increase max depth to five
-                    unpatch=unpatch,
                 )
+                return False
         except (TypeError, ModuleNotFoundError):
             return False
         return False
@@ -146,31 +149,41 @@ def patch_system_calls(func, user_docker_container_name, docker_shell_location):
         docker_shell_location=docker_shell_location,
     )
 
+    patched_functions = []
     find_and_replace_function(
         member=func.__globals__,
         unique_docstring="Execute a child program in a new process.",
-        replace_with=new_subprocess_popen
+        replace_with=new_subprocess_popen,
+        patched_functions=patched_functions,
     )
     if not hasattr(subprocess.Popen, "is_lug_function"):
         find_and_replace_function(
             member=func.__globals__,
             unique_docstring="Run command with arguments and return a CompletedProcess instance",
-            replace_with=new_subprocess_run
+            replace_with=new_subprocess_run,
+            patched_functions=patched_functions,
         )
     find_and_replace_function(
         member=func.__globals__,
         unique_docstring="Execute the command in a subshell",
-        replace_with=new_os_system
+        replace_with=new_os_system,
+        patched_functions=patched_functions,
     )
 
+    return patched_functions
 
-def unpatch_system_calls(func):
-    find_and_replace_function(
-        member=func.__globals__,
-        unique_docstring=None,
-        replace_with=None,
-        unpatch=True
-    )
+
+def unpatch_system_calls(patched_functions):
+    for patched_function_info in patched_functions:
+        if patched_function_info["is_dictionary"]:
+            attribute = patched_function_info["attribute_name"]
+            patched_function_info["member"][attribute] = patched_function_info["original_value"]
+        else:
+            setattr(
+                patched_function_info["member"],
+                patched_function_info["attribute_name"],
+                patched_function_info["original_value"],
+            )
 
 
 def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies):
@@ -180,6 +193,8 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
             modules_to_register = get_modules_to_register(func)
             for module in modules_to_register:
                 cloudpickle.register_pickle_by_value(module)
+        else:
+            cloudpickle.register_pickle_by_value(sys.modules[__name__])
         pickled_func = cloudpickle.dumps(func)
         encoded_func = base64.encodebytes(pickled_func)
         pickled_patch = cloudpickle.dumps(patch_system_calls)
@@ -191,6 +206,8 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         if serialize_dependencies:
             for module in modules_to_register:
                 cloudpickle.unregister_pickle_by_value(module)
+        else:
+            cloudpickle.unregister_pickle_by_value(sys.modules[__name__])
         fp.write("import base64\n")
         fp.write("import cloudpickle\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
@@ -280,8 +297,11 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
         signal.signal(signal.SIGHUP, user_docker.signal_kill_handler)
         signal.signal(signal.SIGSEGV, user_docker.signal_kill_handler)
         signal.signal(signal.SIGTERM, user_docker.signal_kill_handler)
-    patch_system_calls(func, user_docker.container_name, docker_shell_location)
-    result = func(*args, **kwargs)
+    patched_functions = patch_system_calls(func, user_docker.container_name, docker_shell_location)
+    try:
+        result = func(*args, **kwargs)
+    finally:
+        unpatch_system_calls(patched_functions)
     return result
 
 
@@ -305,7 +325,6 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
             supported_versions = ["3.7", "3.8", "3.9", "3.10", "3.11"]
             if python_version not in supported_versions:
                 raise ValueError(f"Python version {python_version} is not supported. PRs welcome!")
-
             try:
                 if remote:
                     result = execute_remote(
@@ -326,8 +345,6 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                     if user_docker.container.status == "running":
                         user_docker.container.stop()
                     user_docker.container.remove()
-                if not remote:
-                    unpatch_system_calls(func)
             return result
         return inner
     return decorator_lug
