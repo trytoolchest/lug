@@ -307,7 +307,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
 
 def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
-        volume_size=None, serialize_dependencies=False, deep_serialize=False):
+        volume_size=None, serialize_dependencies=False):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
