@@ -24,7 +24,7 @@ def get_registered_module_imports(modules_to_register, modules_to_skip):
     Modules that this function finds are not searched for _their_ dependencies. For a truly deep search, this would need
     to be modified to search through found modules and their dependencies.
 
-    Only modules that are already loaded within `sys.modules` or the Lugged function are registered for pickling.
+    Only modules that are already loaded within `sys.modules` of the Lugged function are registered for pickling.
     """
     # Find all sys level registered modules that aren't builtins
     filtered_sys_modules = []
