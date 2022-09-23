@@ -32,6 +32,7 @@ nav:
       - Adding Lug to a Function: "getting-started/adding-lug-to-a-function.md"
       - Running Lug Remotely: "getting-started/running-lug-remotely.md"
       - Using Files: "getting-started/using-files.md"
+      - Dependencies and Lug: "getting-started/dependencies-and-lug.md"
   - Reference:
       - Redirected System Calls: "reference/redirected-system-calls.md"
       - Supported Docker Images: "reference/supported-docker-images.md"
