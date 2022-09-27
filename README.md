@@ -84,6 +84,8 @@ Full docs are at [lug.dev](https://lug.dev)
 - [x] Runs locally
 - [x] Run in the cloud with [Toolchest](https://github.com/trytoolchest/toolchest-client-python)
 - [ ] Stream live `stdout` during remote execution
+- [ ] `pip`-based environment propagation (help needed)
+- [ ] `conda`-based environment propagation (help needed)
 - [ ] Run in the cloud with AWS (help needed)
 - [ ] Run in the cloud with GCP (help needed)
 
