@@ -21,7 +21,6 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
                       docker_shell_location=None):
     """
     Patch os.system, subprocess.run, or subprocess.Popen
-    Note: docker_shell_location refers to the shell in the *user* docker container
     """
 
     def run(*args, **kwargs):
@@ -31,22 +30,23 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
             "exec",
             f"{user_docker_container_name}",
         ]
-        using_shell = kwargs.get("shell") or original_function.__name__ == "system"
-        if using_shell:
-            docker_exec_args.append(docker_shell_location)
-
         if type(args[0]) is list:
+            # subprocess.run or subprocess.Popen without shell
             original_list_args = args[0]
             docker_exec_args += original_list_args
             return original_function(docker_exec_args, *args[1:], **kwargs)
         else:
-            # NOTE: args[0] (the user command argument) can only be a string if using_shell is True.
-            stringified_docker_command = ' '.join(docker_exec_args)
+            additional_docker_exec_args = [
+                docker_shell_location,
+                "-c",
+                "'"
+            ]
+            stringified_docker_command = ' '.join(docker_exec_args + additional_docker_exec_args)
             user_command = args[0].replace("'", r"'\''")  # sanitizes single quotes within sh command
-            new_args = stringified_docker_command + " -c '" + user_command + "'"
-            if pass_kwargs:
-                return original_function(new_args, **kwargs)
-            return original_function(new_args)
+            new_args = stringified_docker_command + user_command + "'"
+        if pass_kwargs:
+            return original_function(new_args, **kwargs)
+        return original_function(new_args)
     run.is_lug_function = True
     run.lug_original_function = original_function
     return run
@@ -263,9 +263,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             inputs=remote_inputs,
             output_path=output_directory,
             script=temp_input.name,
-            container_name=user_docker.container_name,
-            docker_shell_location=docker_shell_location,
-            tool_args=" ".join(sys.argv[1:]),
+            tool_args=user_docker.container_name,
             instance_type=remote_instance_type,
             volume_size=volume_size,
         )
