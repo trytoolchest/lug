@@ -289,7 +289,9 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
         volumes=[f'{mount}:/lug'],
         detach=True,
         stdin_open=True,
-        name=user_docker.container_name
+        name=user_docker.container_name,
+        command=docker_shell_location,
+        working_dir="/lug",
     )
     if threading.current_thread() is threading.main_thread() and not sys.platform.startswith('win'):
         # Only supports Unix signals
