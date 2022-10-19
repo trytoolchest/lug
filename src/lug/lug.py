@@ -237,7 +237,7 @@ def parse_toolchest_run(output_path, output_uuid):
 
 def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, tmp_dir, image, remote_inputs,
                    user_docker, remote_instance_type, volume_size, python_version, docker_shell_location,
-                   serialize_dependencies):
+                   serialize_dependencies, command_line_args):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
     temp_input = tempfile.NamedTemporaryFile(dir=tmp_dir)
@@ -257,6 +257,8 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         if remote_output_directory is None:
             temp_directory = tempfile.TemporaryDirectory(dir=tmp_dir)
         output_directory = remote_output_directory or temp_directory.name
+        if isinstance(command_line_args, list):
+            command_line_args = " ".join(command_line_args)
         remote_run = toolchest_client.lug(
             custom_docker_image_id=image,
             tool_version=python_version,
@@ -265,7 +267,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             script=temp_input.name,
             container_name=user_docker.container_name,
             docker_shell_location=docker_shell_location,
-            tool_args=" ".join(sys.argv[1:]),
+            tool_args=command_line_args,
             instance_type=remote_instance_type,
             volume_size=volume_size,
         )
@@ -311,7 +313,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
 
 def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
-        volume_size=None, serialize_dependencies=False):
+        volume_size=None, serialize_dependencies=False, command_line_args=""):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
@@ -336,7 +338,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                         toolchest_key=toolchest_key, remote_output_directory=remote_output_directory, tmp_dir=tmp_dir,
                         user_docker=user_docker, remote_instance_type=remote_instance_type, volume_size=volume_size,
                         python_version=python_version, docker_shell_location=docker_shell_location,
-                        serialize_dependencies=serialize_dependencies
+                        serialize_dependencies=serialize_dependencies, command_line_args=command_line_args,
                     )
                 else:
                     result = execute_local(
