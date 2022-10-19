@@ -2,6 +2,8 @@ import os
 import subprocess
 import pathlib
 import pytest
+import sys
+from unittest.mock import patch
 
 import lug
 from .remote_import_helper import encode_an_example_string
@@ -33,5 +35,7 @@ def remote_execution_with_imports():
 
 @pytest.mark.integration
 def test_remote_call_sans_pytest_decorator():
-    results = remote_execution_with_imports()
-    assert results == 'bxn--eckwd4c7c.xn--zckzah\n'
+    # patch sys.argv with desired args to prevent lug from using pytest's cmd-line args
+    with patch.object(sys, "argv", []):
+        results = remote_execution_with_imports()
+        assert results == 'bxn--eckwd4c7c.xn--zckzah\n'
