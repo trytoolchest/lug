@@ -21,6 +21,7 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
                       docker_shell_location=None):
     """
     Patch os.system, subprocess.run, or subprocess.Popen
+    Note: docker_shell_location refers to the shell in the *user* docker container
     """
 
     def run(*args, **kwargs):
@@ -30,23 +31,22 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
             "exec",
             f"{user_docker_container_name}",
         ]
+        using_shell = kwargs.get("shell") or original_function.__name__ == "system"
+        if using_shell:
+            docker_exec_args.append(docker_shell_location)
+
         if type(args[0]) is list:
-            # subprocess.run or subprocess.Popen without shell
             original_list_args = args[0]
             docker_exec_args += original_list_args
             return original_function(docker_exec_args, *args[1:], **kwargs)
         else:
-            additional_docker_exec_args = [
-                docker_shell_location,
-                "-c",
-                "'"
-            ]
-            stringified_docker_command = ' '.join(docker_exec_args + additional_docker_exec_args)
+            # NOTE: args[0] (the user command argument) can only be a string if using_shell is True.
+            stringified_docker_command = ' '.join(docker_exec_args)
             user_command = args[0].replace("'", r"'\''")  # sanitizes single quotes within sh command
-            new_args = stringified_docker_command + user_command + "'"
-        if pass_kwargs:
-            return original_function(new_args, **kwargs)
-        return original_function(new_args)
+            new_args = stringified_docker_command + " -c '" + user_command + "'"
+            if pass_kwargs:
+                return original_function(new_args, **kwargs)
+            return original_function(new_args)
     run.is_lug_function = True
     run.lug_original_function = original_function
     return run
@@ -237,7 +237,7 @@ def parse_toolchest_run(output_path, output_uuid):
 
 def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, tmp_dir, image, remote_inputs,
                    user_docker, remote_instance_type, volume_size, python_version, docker_shell_location,
-                   serialize_dependencies):
+                   serialize_dependencies, command_line_args):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
     temp_input = tempfile.NamedTemporaryFile(dir=tmp_dir)
@@ -257,13 +257,17 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         if remote_output_directory is None:
             temp_directory = tempfile.TemporaryDirectory(dir=tmp_dir)
         output_directory = remote_output_directory or temp_directory.name
+        if isinstance(command_line_args, list):
+            command_line_args = " ".join(command_line_args)
         remote_run = toolchest_client.lug(
             custom_docker_image_id=image,
             tool_version=python_version,
             inputs=remote_inputs,
             output_path=output_directory,
             script=temp_input.name,
-            tool_args=user_docker.container_name,
+            container_name=user_docker.container_name,
+            docker_shell_location=docker_shell_location,
+            tool_args=command_line_args,
             instance_type=remote_instance_type,
             volume_size=volume_size,
         )
@@ -289,7 +293,9 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
         volumes=[f'{mount}:/lug'],
         detach=True,
         stdin_open=True,
-        name=user_docker.container_name
+        name=user_docker.container_name,
+        command=docker_shell_location,
+        working_dir="/lug",
     )
     if threading.current_thread() is threading.main_thread() and not sys.platform.startswith('win'):
         # Only supports Unix signals
@@ -307,7 +313,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
 
 def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
-        volume_size=None, serialize_dependencies=False):
+        volume_size=None, serialize_dependencies=False, command_line_args=""):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
@@ -332,7 +338,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                         toolchest_key=toolchest_key, remote_output_directory=remote_output_directory, tmp_dir=tmp_dir,
                         user_docker=user_docker, remote_instance_type=remote_instance_type, volume_size=volume_size,
                         python_version=python_version, docker_shell_location=docker_shell_location,
-                        serialize_dependencies=serialize_dependencies
+                        serialize_dependencies=serialize_dependencies, command_line_args=command_line_args,
                     )
                 else:
                     result = execute_local(

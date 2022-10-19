@@ -51,6 +51,32 @@ print(hello_world())
 See the Toolchest docs for a full list of [instance types](todo) and 
 [pricing](https://docs.trytoolchest.com/docs/pricing).
 
+### Command-line arguments
+To pass in command-line arguments to your remotely executing script, use the `command_line_arguments` argument. 
+
+This can be either a list or a single string of space-separated args. 
+```python
+import argparse
+import lug
+import subprocess
+
+@lug.run(
+    image="alpine:3.16.2",
+    remote=True,
+    toolchest_key="YOUR_KEY",
+    command_line_args=["--value-to-print", "Hello"],
+)
+def say_hello():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--value-to-print",
+                        dest="value_to_print")
+    
+    result = subprocess.run(f"echo {parser.parse_args().value_to_print}", capture_output=True, text=True, shell=True)
+    return result.stdout
+
+print(say_hello())
+```
+
 ## Running Lug in AWS, Azure, GCP, or on-prem
 
 You can run Lug on any machine, but automated cloud offloading isn't supported yet outside of Toolchest. PRs are welcome!
