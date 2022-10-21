@@ -17,15 +17,17 @@ class DockerContainer:
     def __repr__(self):
         return str(f"<Lug DockerContainer {self.image_name_and_tag}>")
 
-    def load_image(self):
+    def load_image(self, remote=False):
         try:
             self.image = self.docker_client.images.get(self.image_name_and_tag)
         except ImageNotFound:
-            self.image = self.docker_client.images.pull(self.image_name_and_tag)
+            if not remote:
+                self.image = self.docker_client.images.pull(self.image_name_and_tag)
         except (APIError, DockerException):
-            raise EnvironmentError(
-                'Unable to connect to Docker. Make sure you have Docker installed and that it is currently running.'
-            )
+            if not remote:
+                raise EnvironmentError(
+                    'Unable to connect to Docker. Make sure you have Docker installed and that it is currently running.'
+                )
 
     def signal_kill_handler(self, signum, frame):
         if self.container is not None:
