@@ -324,7 +324,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                 docker_client=client,
                 image_name_and_tag=image,
             )
-            user_docker.load_image()
+            user_docker.load_image(remote=remote)
 
             # Find current Python version
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
