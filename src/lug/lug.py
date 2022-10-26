@@ -237,7 +237,7 @@ def parse_toolchest_run(output_path, output_uuid):
 
 def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, tmp_dir, image, remote_inputs,
                    user_docker, remote_instance_type, volume_size, python_version, docker_shell_location,
-                   serialize_dependencies, command_line_args):
+                   serialize_dependencies, command_line_args, streaming_enabled):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
     temp_input = tempfile.NamedTemporaryFile(dir=tmp_dir)
@@ -270,6 +270,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             tool_args=command_line_args,
             instance_type=remote_instance_type,
             volume_size=volume_size,
+            streaming_enabled=streaming_enabled,
         )
         status_response = remote_run.get_status(return_error=True)
         status = status_response['status']
@@ -313,7 +314,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
 
 def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
-        volume_size=None, serialize_dependencies=False, command_line_args=""):
+        volume_size=None, serialize_dependencies=False, command_line_args="", streaming_enabled=True):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
@@ -339,6 +340,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                         user_docker=user_docker, remote_instance_type=remote_instance_type, volume_size=volume_size,
                         python_version=python_version, docker_shell_location=docker_shell_location,
                         serialize_dependencies=serialize_dependencies, command_line_args=command_line_args,
+                        streaming_enabled=True,
                     )
                 else:
                     result = execute_local(
