@@ -318,22 +318,18 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
-            client = docker.from_env()
-
-            # Get or pull the user Docker image from local/remote
-            user_docker = DockerContainer(
-                docker_client=client,
-                image_name_and_tag=image,
-            )
-            user_docker.load_image(remote=remote)
-
             # Find current Python version
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
             supported_versions = ["3.7", "3.8", "3.9", "3.10", "3.11"]
             if python_version not in supported_versions:
                 raise ValueError(f"Python version {python_version} is not supported. PRs welcome!")
+            user_docker = None
             try:
                 if remote:
+                    user_docker = DockerContainer(
+                        docker_client=None,
+                        image_name_and_tag=image,
+                    )
                     result = execute_remote(
                         func=func, args=args, kwargs=kwargs, image=image, remote_inputs=remote_inputs,
                         toolchest_key=toolchest_key, remote_output_directory=remote_output_directory, tmp_dir=tmp_dir,
@@ -343,6 +339,14 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                         streaming_enabled=True,
                     )
                 else:
+                    client = docker.from_env()
+
+                    # Get or pull the user Docker image from local/remote
+                    user_docker = DockerContainer(
+                        docker_client=client,
+                        image_name_and_tag=image,
+                    )
+                    user_docker.load_image(remote=remote)
                     result = execute_local(
                         func=func, args=args, kwargs=kwargs, mount=mount, client=client, user_docker=user_docker,
                         docker_shell_location=docker_shell_location
