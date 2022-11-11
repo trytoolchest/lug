@@ -336,7 +336,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                         user_docker=user_docker, remote_instance_type=remote_instance_type, volume_size=volume_size,
                         python_version=python_version, docker_shell_location=docker_shell_location,
                         serialize_dependencies=serialize_dependencies, command_line_args=command_line_args,
-                        streaming_enabled=True,
+                        streaming_enabled=streaming_enabled,
                     )
                 else:
                     client = docker.from_env()
