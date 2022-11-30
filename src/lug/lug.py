@@ -271,6 +271,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             instance_type=remote_instance_type,
             volume_size=volume_size,
             streaming_enabled=streaming_enabled,
+            compress_inputs=True,
         )
         status_response = remote_run.get_status(return_error=True)
         status = status_response['status']
