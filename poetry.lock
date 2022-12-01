@@ -634,7 +634,7 @@ reference = "pypi-public"
 
 [[package]]
 name = "toolchest-client"
-version = "0.11.4"
+version = "0.11.5"
 description = "Python client for Toolchest"
 category = "main"
 optional = false
@@ -774,7 +774,7 @@ reference = "pypi-public"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "597569b80b075ec97e25ac1a7836de88cc529b207e38e1fd72f2dce196ffcca9"
+content-hash = "32509775a7600c899b1142f8fc612bd0386c97e1470c1f26676473465fe0a6da"
 
 [metadata.files]
 attrs = [
@@ -1007,8 +1007,8 @@ tomli = [
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
 ]
 toolchest-client = [
-    {file = "toolchest_client-0.11.4-py3-none-any.whl", hash = "sha256:8ee3abcb1f659a0045bb5324e34408594d68bc917de3f4a35d81b7d70547eb3d"},
-    {file = "toolchest_client-0.11.4.tar.gz", hash = "sha256:342a06939771580560dbceb476f605bf15de65615aa101116eff232865250667"},
+    {file = "toolchest_client-0.11.5-py3-none-any.whl", hash = "sha256:52df0b537e83f785e7518f15fbab7f91092158dfffd6d1a5c5af0e8c1515c5c4"},
+    {file = "toolchest_client-0.11.5.tar.gz", hash = "sha256:1fd63f42dd29a1fc60c6858ed1cf5fde9ba12d2c3dd5ae1c51c1e0c12310f7c0"},
 ]
 typer = [
     {file = "typer-0.4.2-py3-none-any.whl", hash = "sha256:023bae00d1baf358a6cc7cea45851639360bb716de687b42b0a4641cd99173f1"},
