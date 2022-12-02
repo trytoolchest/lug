@@ -19,14 +19,14 @@ reference = "pypi-public"
 
 [[package]]
 name = "boto3"
-version = "1.26.20"
+version = "1.26.21"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 
 [package.dependencies]
-botocore = ">=1.29.20,<1.30.0"
+botocore = ">=1.29.21,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -40,7 +40,7 @@ reference = "pypi-public"
 
 [[package]]
 name = "botocore"
-version = "1.29.20"
+version = "1.29.21"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -53,11 +53,6 @@ urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
 crt = ["awscrt (==0.15.3)"]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.org/simple"
-reference = "pypi-public"
 
 [[package]]
 name = "certifi"
@@ -634,7 +629,7 @@ reference = "pypi-public"
 
 [[package]]
 name = "toolchest-client"
-version = "0.11.5"
+version = "0.11.6"
 description = "Python client for Toolchest"
 category = "main"
 optional = false
@@ -774,7 +769,7 @@ reference = "pypi-public"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "32509775a7600c899b1142f8fc612bd0386c97e1470c1f26676473465fe0a6da"
+content-hash = "dff3c2e8a55ae41a291a03110a83fe04885a1673944c3dfbfa1aa14170dd707a"
 
 [metadata.files]
 attrs = [
@@ -782,12 +777,12 @@ attrs = [
     {file = "attrs-22.1.0.tar.gz", hash = "sha256:29adc2665447e5191d0e7c568fde78b21f9672d344281d0c6e1ab085429b22b6"},
 ]
 boto3 = [
-    {file = "boto3-1.26.20-py3-none-any.whl", hash = "sha256:6b2e04ea415f375f607e6c633f7699e6a56bdc35c294116c5a6dc02da6aaa2ba"},
-    {file = "boto3-1.26.20.tar.gz", hash = "sha256:0d61243999adaddee22855ada1fdf7fe3d89cc95821e82f3b3a9dbe56c1589ba"},
+    {file = "boto3-1.26.21-py3-none-any.whl", hash = "sha256:cd66fee0b1d533c69b6ba2b7f8d3825cb0f5459e2cdbc604e2fe9e9c0a15609c"},
+    {file = "boto3-1.26.21.tar.gz", hash = "sha256:311f1c7223f8298f3f175b581c56fad04ea4849a144c69934daf1658db4ae7dd"},
 ]
 botocore = [
-    {file = "botocore-1.29.20-py3-none-any.whl", hash = "sha256:7c26cb870d0cae26349df2926a7bf6277c1326db6d42c650807a519d50a83786"},
-    {file = "botocore-1.29.20.tar.gz", hash = "sha256:806dab6358b0b44d7b283f133aadd26846f31fab12c97d348a1849b3b5a36c74"},
+    {file = "botocore-1.29.21-py3-none-any.whl", hash = "sha256:ac620727f7b8c81e7c0c841d30be4a01a898e0b6aeed1ddf1ba653742d8f6319"},
+    {file = "botocore-1.29.21.tar.gz", hash = "sha256:02d1f864e13d219887cc35a3f6e197e9f52c47b0e8f568b3fbbf5f69e667c7f5"},
 ]
 certifi = [
     {file = "certifi-2022.9.24-py3-none-any.whl", hash = "sha256:90c1a32f1d68f940488354e36370f6cca89f0f106db09518524c88d6ed83f382"},
@@ -1007,8 +1002,8 @@ tomli = [
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
 ]
 toolchest-client = [
-    {file = "toolchest_client-0.11.5-py3-none-any.whl", hash = "sha256:52df0b537e83f785e7518f15fbab7f91092158dfffd6d1a5c5af0e8c1515c5c4"},
-    {file = "toolchest_client-0.11.5.tar.gz", hash = "sha256:1fd63f42dd29a1fc60c6858ed1cf5fde9ba12d2c3dd5ae1c51c1e0c12310f7c0"},
+    {file = "toolchest_client-0.11.6-py3-none-any.whl", hash = "sha256:628321393fe3ffb0f90030181267269ebf2b5d89540000e06e2436c7ad982e99"},
+    {file = "toolchest_client-0.11.6.tar.gz", hash = "sha256:75162884e73258e79318352bd243198f0c67ab6d6c1f589c76717b8b324a535f"},
 ]
 typer = [
     {file = "typer-0.4.2-py3-none-any.whl", hash = "sha256:023bae00d1baf358a6cc7cea45851639360bb716de687b42b0a4641cd99173f1"},
