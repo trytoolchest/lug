@@ -131,7 +131,7 @@ dmypy.json
 # Custom files
 demo.py
 demo-import.py
-src/demo.py
+test/demo.py
 toolchest_client/demo.py
 
 # JetBrains
