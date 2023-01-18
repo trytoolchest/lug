@@ -197,7 +197,7 @@ def can_be_pickled(module):
         cloudpickle.register_pickle_by_value(module)
         cloudpickle.dumps(squared)
         return True
-    except Exception as e:
+    except Exception:
         return False
     finally:
         cloudpickle.unregister_pickle_by_value(module)
@@ -223,7 +223,7 @@ def find_module_transferability(modules):
             module = sys.modules[parent]
         submodule_search_locations = module.__spec__.submodule_search_locations
         loader_members = inspect.getmembers(module.__spec__.loader)
-        loader_keys = [l[0] for l in loader_members]
+        loader_keys = [loader[0] for loader in loader_members]
         loader_path = None
         if "path" in loader_keys:
             loader_path = module.__spec__.loader.path
@@ -237,7 +237,7 @@ def find_module_transferability(modules):
 
             # Check if the package contains any CPython compiled files (e.g. numpy, scipy, etc)
             has_so_files = glob.glob(f"{adjusted_primary_location}/*.so") \
-                           + glob.glob(f"{adjusted_primary_location}/**/*.so", recursive=True)
+                + glob.glob(f"{adjusted_primary_location}/**/*.so", recursive=True)
             if has_so_files:
                 picklable = False
 
@@ -268,7 +268,8 @@ def env_requirements_to_string(pip_packages):
     return requirements_string
 
 
-def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies, internal_dir):
+def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies,
+                         internal_dir):
     output_uuid = uuid.uuid4()
     with open(temp_input.name, 'w') as fp:
         copyable_packages = []
@@ -316,9 +317,9 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         fp.write("import cloudpickle\n")
         fp.write("import os\n")
         fp.write(f"for dir in {list(copyable_packages)}:\n")  # Make directories
-        fp.write(f"\tos.makedirs(os.path.dirname(dir), exist_ok=True)\n")
+        fp.write("\tos.makedirs(os.path.dirname(dir), exist_ok=True)\n")
         fp.write(f"for link in {links}:\n")  # ln all paths
-        fp.write(f"\tos.symlink(os.path.join(os.getcwd(), link[1]), link[0])\n")
+        fp.write("\tos.symlink(os.path.join(os.getcwd(), link[1]), link[0])\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
         fp.write(f"patch_system_calls = cloudpickle.loads(base64.decodebytes({encoded_pickled_patch}))\n")
         fp.write(f"args = cloudpickle.loads(base64.decodebytes({encoded_args}))\n")
