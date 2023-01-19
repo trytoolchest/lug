@@ -192,10 +192,11 @@ def unpatch_system_calls(patched_functions):
 
 
 def can_be_pickled(module):
-    squared = lambda x: module.__name__
+    # The module must be referenced inside the function to actually test if it can be pickled
+    dummy_function_using_module = lambda x: module.__name__
     try:
         cloudpickle.register_pickle_by_value(module)
-        cloudpickle.dumps(squared)
+        cloudpickle.dumps(dummy_function_using_module)
         return True
     except Exception:
         return False
