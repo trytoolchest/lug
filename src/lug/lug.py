@@ -246,7 +246,9 @@ def find_module_transferability(modules):
             try:
                 pip_names = packages_distributions[module.__name__]
                 for pip_name in pip_names:
-                    uncopyable_pip_names[pip_name] = module.__version__
+                    # Drop local version identifiers (e.g. "+cu117" in "torch==1.13.1+cu117")
+                    public_version = module.__version__.split("+")[0]
+                    uncopyable_pip_names[pip_name] = public_version
                 uncopyable_packages.add(module.__name__)
                 # Make sure we know not to copy the child if present (e.g. lug and lug.run)
                 if child:
