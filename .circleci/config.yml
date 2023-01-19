@@ -28,12 +28,12 @@ jobs:
           key: v1-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
+          # --no-ansi flag is workaround for https://github.com/python-poetry/poetry/issues/7184
           command: |
             cd ~/repo
-            curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_UNINSTALL=1 python -
             curl -sSL https://install.python-poetry.org | python3 -
             ln -sf ~/.local/share/pypoetry/venv/bin/poetry ~/.local/bin/poetry
-            ~/.local/bin/poetry install
+            ~/.local/bin/poetry install --no-ansi
       - save_cache:
           key: v1-deps-{{ checksum "poetry.lock" }}
           paths:
@@ -68,10 +68,11 @@ jobs:
           key: v1-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
+           # --no-ansi flag is workaround for https://github.com/python-poetry/poetry/issues/7184
           command: |
             cd ~/repo
             curl -sSL https://install.python-poetry.org | python3 -
-            ~/.local/bin/poetry install
+            ~/.local/bin/poetry install --no-ansi
       - save_cache:
           key: v1-deps-{{ checksum "poetry.lock" }}
           paths:
