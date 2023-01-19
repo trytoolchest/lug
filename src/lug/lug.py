@@ -1,7 +1,10 @@
 import base64
 import functools
+import glob
+import importlib_metadata
 import inspect
 import os
+import shutil
 import signal
 import sys
 import threading
@@ -47,6 +50,7 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
             if pass_kwargs:
                 return original_function(new_args, **kwargs)
             return original_function(new_args)
+
     run.is_lug_function = True
     run.lug_original_function = original_function
     return run
@@ -83,7 +87,8 @@ def find_and_replace_function(member, unique_docstring, replace_with, patched_fu
         # import os -> os is a module
         try:
             members = inspect.getmembers(member)
-        except ModuleNotFoundError:
+        # For some members, inspect.getmembers returns "TypeError: '_ClassNamespace' object is not iterable"
+        except (ModuleNotFoundError, TypeError):
             return
         for name, sub_member in members:
             if name == "__builtins__":
@@ -186,12 +191,115 @@ def unpatch_system_calls(patched_functions):
             )
 
 
-def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies):
+def can_be_pickled(module):
+    # The module must be referenced inside the function to actually test if it can be pickled
+    dummy_function_using_module = lambda x: module.__name__
+    try:
+        cloudpickle.register_pickle_by_value(module)
+        cloudpickle.dumps(dummy_function_using_module)
+        return True
+    except Exception:
+        return False
+    finally:
+        cloudpickle.unregister_pickle_by_value(module)
+
+
+def find_module_transferability(modules):
+    copyable_packages = set()
+    uncopyable_packages = set()
+    uncopyable_pip_names = dict()  # package_name: version # todo: filter out packages that can't be installed with pip
+    packages_distributions = importlib_metadata.packages_distributions()
+    # Split pickleable and unpickleable packages
+    for module in modules:
+        if not module.__spec__:
+            continue
+
+        picklable = can_be_pickled(module)
+
+        # Find physical location of module source
+        parent = module.__spec__.name.rpartition(".")[0]
+        child = None
+        if parent:
+            child = module
+            module = sys.modules[parent]
+        submodule_search_locations = module.__spec__.submodule_search_locations
+        loader_members = inspect.getmembers(module.__spec__.loader)
+        loader_keys = [loader[0] for loader in loader_members]
+        loader_path = None
+        if "path" in loader_keys:
+            loader_path = module.__spec__.loader.path
+        # todo: handle multiple submodule search locations
+        primary_location = (submodule_search_locations and submodule_search_locations[0]) or loader_path
+
+        has_so_files = False
+        if primary_location:
+            adjusted_primary_location = os.path.dirname(primary_location) if primary_location.endswith(".py") \
+                else primary_location
+
+            # Check if the package contains any CPython compiled files (e.g. numpy, scipy, etc)
+            has_so_files = glob.glob(f"{adjusted_primary_location}/*.so") \
+                + glob.glob(f"{adjusted_primary_location}/**/*.so", recursive=True)
+            if has_so_files:
+                picklable = False
+
+        if not picklable:
+            try:
+                pip_names = packages_distributions[module.__name__]
+                for pip_name in pip_names:
+                    # Drop local version identifiers (e.g. "+cu117" in "torch==1.13.1+cu117")
+                    public_version = module.__version__.split("+")[0]
+                    uncopyable_pip_names[pip_name] = public_version
+                uncopyable_packages.add(module.__name__)
+                # Make sure we know not to copy the child if present (e.g. lug and lug.run)
+                if child:
+                    uncopyable_packages.add(child.__name__)
+            except KeyError:
+                if not has_so_files:
+                    # Add to packages that need to be manually copied
+                    copyable_packages.add(primary_location)
+                else:
+                    raise ModuleNotFoundError(f"'{module.__name__}' distribution info not found on this machine.")
+            continue
+
+    return uncopyable_packages, uncopyable_pip_names, copyable_packages
+
+
+def env_requirements_to_string(pip_packages):
+    requirements_string = ""
+    for name, version in pip_packages.items():
+        requirements_string += f"{name}=={version} "
+    return requirements_string
+
+
+def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies,
+                         internal_dir):
     output_uuid = uuid.uuid4()
     with open(temp_input.name, 'w') as fp:
+        copyable_packages = []
+        pip_packages_string = ''
+        links = []
         if serialize_dependencies:
             modules_to_register = get_modules_to_register(func)
-            for module in modules_to_register:
+            uncopyable_packages, uncopyable_pip_names, copyable_packages = find_module_transferability(
+                modules_to_register
+            )
+            pip_packages_string = env_requirements_to_string(uncopyable_pip_names)
+            pickle_packages = list(filter(
+                lambda mod: mod.__name__ not in copyable_packages and mod.__name__ not in uncopyable_packages,
+                modules_to_register,
+            ))
+            internal_dir_basename = os.path.basename(internal_dir)
+            for module_location_to_include in copyable_packages:
+                #  todo: handle conflicts for package directory names
+                local_path_with_internal_dir = os.path.join(
+                    internal_dir_basename,
+                    os.path.basename(module_location_to_include)
+                )
+                abs_path_with_internal_dir = os.path.join(internal_dir, os.path.basename(module_location_to_include))
+                if not os.path.exists(abs_path_with_internal_dir):
+                    shutil.copytree(module_location_to_include, abs_path_with_internal_dir)
+                links.append((module_location_to_include, f"./input/{local_path_with_internal_dir}"))
+            for module in pickle_packages:
                 cloudpickle.register_pickle_by_value(module)
         else:
             cloudpickle.register_pickle_by_value(sys.modules[__name__])
@@ -204,29 +312,33 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         pickled_kwargs = cloudpickle.dumps(kwargs)
         encoded_kwargs = base64.encodebytes(pickled_kwargs)
         if serialize_dependencies:
-            for module in modules_to_register:
+            for module in pickle_packages:
                 cloudpickle.unregister_pickle_by_value(module)
         else:
             cloudpickle.unregister_pickle_by_value(sys.modules[__name__])
         fp.write("import base64\n")
         fp.write("import cloudpickle\n")
+        fp.write("import os\n")
+        fp.write(f"for dir in {list(copyable_packages)}:\n")  # Make directories
+        fp.write("\tos.makedirs(os.path.dirname(dir), exist_ok=True)\n")
+        fp.write(f"for link in {links}:\n")  # ln all paths
+        fp.write("\tos.symlink(os.path.join(os.getcwd(), link[1]), link[0])\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
         fp.write(f"patch_system_calls = cloudpickle.loads(base64.decodebytes({encoded_pickled_patch}))\n")
         fp.write(f"args = cloudpickle.loads(base64.decodebytes({encoded_args}))\n")
         fp.write(f"kwargs = cloudpickle.loads(base64.decodebytes({encoded_kwargs}))\n")
         fp.write(f"patch_system_calls(func, '{user_docker.container_name}', '{docker_shell_location}')\n")
-        fp.write("print('Starting execution')\n")
         fp.write("result = func(*args, **kwargs)\n")
         fp.write(f"with open(f'./output/encoded_output_{output_uuid}', 'wb') as file:\n")
         fp.write("\tfile.write(base64.encodebytes(cloudpickle.dumps(result)))\n")
-    return output_uuid
+    return output_uuid, pip_packages_string
 
 
 def parse_toolchest_run(output_path, output_uuid):
     encoded_output_path = f'{output_path}/encoded_output_{output_uuid}'
     if os.path.exists(encoded_output_path):
         with open(encoded_output_path, 'rb') as file:
-            encoded_result = file.readline()
+            encoded_result = file.read().replace(b'\n', b'')
             if encoded_result:
                 result = cloudpickle.loads(base64.decodebytes(encoded_result))
             else:
@@ -240,9 +352,13 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
                    serialize_dependencies, command_line_args, streaming_enabled):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
+    # Create a .lug-uuid4()/ directory for Lug module propagation
+    lug_internal_dir = os.path.join(tmp_dir, f".lug-{uuid.uuid4()}")
+    os.mkdir(lug_internal_dir)
+
     temp_input = tempfile.NamedTemporaryFile(dir=tmp_dir)
     temp_directory = None
-    output_uuid = create_python_script(
+    output_uuid, pip_packages_string = create_python_script(
         func=func,
         args=args,
         kwargs=kwargs,
@@ -250,6 +366,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         user_docker=user_docker,
         docker_shell_location=docker_shell_location,
         serialize_dependencies=serialize_dependencies,
+        internal_dir=lug_internal_dir,
     )
     try:
         if toolchest_key:
@@ -259,6 +376,8 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         output_directory = remote_output_directory or temp_directory.name
         if isinstance(command_line_args, list):
             command_line_args = " ".join(command_line_args)
+        remote_inputs = remote_inputs or []
+        remote_inputs.append(lug_internal_dir)
         remote_run = toolchest_client.lug(
             custom_docker_image_id=image,
             tool_version=python_version,
@@ -272,6 +391,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             volume_size=volume_size,
             streaming_enabled=streaming_enabled,
             compress_inputs=True,
+            pip_dependencies=pip_packages_string,
             retain_base_directory=True,
         )
         status_response = remote_run.get_status(return_error=True)
@@ -314,7 +434,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
     return result
 
 
-def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/bin/sh", remote=False,
+def run(image, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
         volume_size=None, serialize_dependencies=False, command_line_args="", streaming_enabled=True):
     def decorator_lug(func):
@@ -322,7 +442,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
         def inner(*args, **kwargs):
             # Find current Python version
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-            supported_versions = ["3.7", "3.8", "3.9", "3.10", "3.11"]
+            supported_versions = ["3.8", "3.9", "3.10", "3.11"]
             if python_version not in supported_versions:
                 raise ValueError(f"Python version {python_version} is not supported. PRs welcome!")
             user_docker = None
@@ -360,5 +480,7 @@ def run(image, mount=os.getcwd(), tmp_dir=os.getcwd(), docker_shell_location="/b
                         user_docker.container.stop()
                     user_docker.container.remove()
             return result
+
         return inner
+
     return decorator_lug
