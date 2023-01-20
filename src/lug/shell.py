@@ -1,0 +1,9 @@
+import subprocess
+
+
+def sidecar_shell(command, **kwargs):
+    """
+    This function is redirected to the Lug sidecar container. The first arg must remain the shell command.
+    """
+    result = subprocess.run(command, text=True, shell=True, **kwargs)
+    return result
