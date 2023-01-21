@@ -512,7 +512,7 @@ def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_she
                         serialize_dependencies=serialize_dependencies,
                         command_line_args=command_line_args,
                         streaming_enabled=streaming_enabled,
-                        redirect_shell=image and redirect_shell,
+                        redirect_shell=image is not None and redirect_shell,
                     )
                 else:
                     client, user_docker = None, None
@@ -533,7 +533,7 @@ def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_she
                         client=client,
                         user_docker=user_docker,
                         docker_shell_location=docker_shell_location,
-                        redirect_shell=image and redirect_shell,
+                        redirect_shell=image is not None and redirect_shell,
                     )
             finally:
                 if user_docker is not None and user_docker.container is not None:
