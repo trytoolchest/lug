@@ -1,7 +1,7 @@
 import base64
 import functools
 import glob
-import importlib_metadata
+from importlib.metadata import packages_distributions
 import inspect
 import os
 import shutil
@@ -14,16 +14,16 @@ import uuid
 import cloudpickle
 import docker
 import tempfile
-import toolchest_client
 
 from .containers import DockerContainer
 from .module_detection import get_modules_to_register
+from .shell import sidecar_shell
 
 
 def patch_system_call(user_docker_container_name=None, original_function=None, pass_kwargs=True,
                       docker_shell_location=None):
     """
-    Patch os.system, subprocess.run, or subprocess.Popen
+    Patch os.system, subprocess.run, subprocess.Popen, and Lug sidecar_shell
     Note: docker_shell_location refers to the shell in the *user* docker container
     """
 
@@ -34,7 +34,7 @@ def patch_system_call(user_docker_container_name=None, original_function=None, p
             "exec",
             f"{user_docker_container_name}",
         ]
-        using_shell = kwargs.get("shell") or original_function.__name__ == "system"
+        using_shell = kwargs.get("shell") or original_function.__name__ in ["system", "sidecar_shell"]
         if using_shell:
             docker_exec_args.append(docker_shell_location)
 
@@ -131,49 +131,63 @@ def find_and_replace_function(member, unique_docstring, replace_with, patched_fu
         return False
 
 
-def patch_system_calls(func, user_docker_container_name, docker_shell_location):
-    # Create a new subprocess.run
-    import subprocess
-    new_subprocess_run = patch_system_call(
+def patch_system_calls(func, user_docker_container_name, docker_shell_location, redirect_shell):
+    patched_functions = []
+
+    # Create a patched lug.sidecar_shell
+    new_sidecar_shell = patch_system_call(
         user_docker_container_name=user_docker_container_name,
-        original_function=subprocess.run,
+        original_function=sidecar_shell,
         docker_shell_location=docker_shell_location,
     )
-    # Create a new subprocess.Popen
-    new_subprocess_popen = patch_system_call(
-        user_docker_container_name=user_docker_container_name,
-        original_function=subprocess.Popen,
-        docker_shell_location=docker_shell_location,
-    )
-    # Create a new os.system
-    import os
-    new_os_system = patch_system_call(
-        user_docker_container_name=user_docker_container_name,
-        original_function=os.system,
-        pass_kwargs=False,
-        docker_shell_location=docker_shell_location,
+    find_and_replace_function(
+        member=func.__globals__,
+        unique_docstring="This function is redirected to the Lug sidecar container.",
+        replace_with=new_sidecar_shell,
+        patched_functions=patched_functions,
     )
 
-    patched_functions = []
-    find_and_replace_function(
-        member=func.__globals__,
-        unique_docstring="Execute a child program in a new process.",
-        replace_with=new_subprocess_popen,
-        patched_functions=patched_functions,
-    )
-    if not hasattr(subprocess.Popen, "is_lug_function"):
+    if redirect_shell:
+        # Create a new subprocess.Popen
+        import subprocess
+        new_subprocess_popen = patch_system_call(
+            user_docker_container_name=user_docker_container_name,
+            original_function=subprocess.Popen,
+            docker_shell_location=docker_shell_location,
+        )
         find_and_replace_function(
             member=func.__globals__,
-            unique_docstring="Run command with arguments and return a CompletedProcess instance",
-            replace_with=new_subprocess_run,
+            unique_docstring="Execute a child program in a new process.",
+            replace_with=new_subprocess_popen,
             patched_functions=patched_functions,
         )
-    find_and_replace_function(
-        member=func.__globals__,
-        unique_docstring="Execute the command in a subshell",
-        replace_with=new_os_system,
-        patched_functions=patched_functions,
-    )
+        # Create a new subprocess.run
+        new_subprocess_run = patch_system_call(
+            user_docker_container_name=user_docker_container_name,
+            original_function=subprocess.run,
+            docker_shell_location=docker_shell_location,
+        )
+        if not hasattr(subprocess.Popen, "is_lug_function"):
+            find_and_replace_function(
+                member=func.__globals__,
+                unique_docstring="Run command with arguments and return a CompletedProcess instance",
+                replace_with=new_subprocess_run,
+                patched_functions=patched_functions,
+            )
+        # Create a new os.system
+        import os
+        new_os_system = patch_system_call(
+            user_docker_container_name=user_docker_container_name,
+            original_function=os.system,
+            pass_kwargs=False,
+            docker_shell_location=docker_shell_location,
+        )
+        find_and_replace_function(
+            member=func.__globals__,
+            unique_docstring="Execute the command in a subshell",
+            replace_with=new_os_system,
+            patched_functions=patched_functions,
+        )
 
     return patched_functions
 
@@ -205,10 +219,11 @@ def can_be_pickled(module):
 
 
 def find_module_transferability(modules):
+    children_to_ignore = set()
     copyable_packages = set()
     uncopyable_packages = set()
     uncopyable_pip_names = dict()  # package_name: version # todo: filter out packages that can't be installed with pip
-    packages_distributions = importlib_metadata.packages_distributions()
+    packages_distribution = packages_distributions()
     # Split pickleable and unpickleable packages
     for module in modules:
         if not module.__spec__:
@@ -239,12 +254,11 @@ def find_module_transferability(modules):
             # Check if the package contains any CPython compiled files (e.g. numpy, scipy, etc)
             has_so_files = glob.glob(f"{adjusted_primary_location}/*.so") \
                 + glob.glob(f"{adjusted_primary_location}/**/*.so", recursive=True)
-            if has_so_files:
-                picklable = False
+            picklable = False
 
         if not picklable:
             try:
-                pip_names = packages_distributions[module.__name__]
+                pip_names = packages_distribution[module.__name__]
                 for pip_name in pip_names:
                     # Drop local version identifiers (e.g. "+cu117" in "torch==1.13.1+cu117")
                     public_version = module.__version__.split("+")[0]
@@ -253,15 +267,29 @@ def find_module_transferability(modules):
                 # Make sure we know not to copy the child if present (e.g. lug and lug.run)
                 if child:
                     uncopyable_packages.add(child.__name__)
+                    children_to_ignore.add(child)
             except KeyError:
                 if not has_so_files:
                     # Add to packages that need to be manually copied
                     copyable_packages.add(primary_location)
+                    children_to_ignore.add(child)
                 else:
                     raise ModuleNotFoundError(f"'{module.__name__}' distribution info not found on this machine.")
             continue
 
-    return uncopyable_packages, uncopyable_pip_names, copyable_packages
+    # Prune copyable packages that are a subdirectory of another package
+    # I'm assuming the copyable_packages set will be tiny; optimizing for clarity rather than performance
+    for package_a in copyable_packages.copy():
+        for package_b in copyable_packages:
+            if package_a == package_b:
+                continue
+            # Assuming all absolute paths, no symlinks. If not, we should use proper parent finding.
+            is_child = package_a.startswith(package_b) and len(package_a.split(package_b)) > 1
+            if is_child:
+                copyable_packages.remove(package_a)
+                break
+
+    return uncopyable_packages, uncopyable_pip_names, copyable_packages, children_to_ignore
 
 
 def env_requirements_to_string(pip_packages):
@@ -272,7 +300,7 @@ def env_requirements_to_string(pip_packages):
 
 
 def create_python_script(func, args, kwargs, temp_input, user_docker, docker_shell_location, serialize_dependencies,
-                         internal_dir):
+                         internal_dir, redirect_shell):
     output_uuid = uuid.uuid4()
     with open(temp_input.name, 'w') as fp:
         copyable_packages = []
@@ -280,14 +308,14 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         links = []
         if serialize_dependencies:
             modules_to_register = get_modules_to_register(func)
-            uncopyable_packages, uncopyable_pip_names, copyable_packages = find_module_transferability(
-                modules_to_register
-            )
+            uncopyable_packages, uncopyable_pip_names, copyable_packages, children_to_ignore = \
+                find_module_transferability(modules_to_register)
             pip_packages_string = env_requirements_to_string(uncopyable_pip_names)
-            pickle_packages = list(filter(
+            pickle_packages = set(filter(
                 lambda mod: mod.__name__ not in copyable_packages and mod.__name__ not in uncopyable_packages,
                 modules_to_register,
             ))
+            pickle_packages -= children_to_ignore
             internal_dir_basename = os.path.basename(internal_dir)
             for module_location_to_include in copyable_packages:
                 #  todo: handle conflicts for package directory names
@@ -316,18 +344,22 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
                 cloudpickle.unregister_pickle_by_value(module)
         else:
             cloudpickle.unregister_pickle_by_value(sys.modules[__name__])
+        container_name = user_docker.container_name if user_docker else None
+
         fp.write("import base64\n")
         fp.write("import cloudpickle\n")
         fp.write("import os\n")
+        fp.write("import sys\n")
         fp.write(f"for dir in {list(copyable_packages)}:\n")  # Make directories
         fp.write("\tos.makedirs(os.path.dirname(dir), exist_ok=True)\n")
+        fp.write("\tsys.path.insert(0, os.path.dirname(dir))\n")
         fp.write(f"for link in {links}:\n")  # ln all paths
         fp.write("\tos.symlink(os.path.join(os.getcwd(), link[1]), link[0])\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
         fp.write(f"patch_system_calls = cloudpickle.loads(base64.decodebytes({encoded_pickled_patch}))\n")
         fp.write(f"args = cloudpickle.loads(base64.decodebytes({encoded_args}))\n")
         fp.write(f"kwargs = cloudpickle.loads(base64.decodebytes({encoded_kwargs}))\n")
-        fp.write(f"patch_system_calls(func, '{user_docker.container_name}', '{docker_shell_location}')\n")
+        fp.write(f"patch_system_calls(func, '{container_name}', '{docker_shell_location}', {redirect_shell})\n")
         fp.write("result = func(*args, **kwargs)\n")
         fp.write(f"with open(f'./output/encoded_output_{output_uuid}', 'wb') as file:\n")
         fp.write("\tfile.write(base64.encodebytes(cloudpickle.dumps(result)))\n")
@@ -349,7 +381,11 @@ def parse_toolchest_run(output_path, output_uuid):
 
 def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, tmp_dir, image, remote_inputs,
                    user_docker, remote_instance_type, volume_size, python_version, docker_shell_location,
-                   serialize_dependencies, command_line_args, streaming_enabled):
+                   serialize_dependencies, command_line_args, streaming_enabled, redirect_shell):
+    # We're deploying Lug via Toolchest, but the user code deployed by Lug could include a different version of the
+    # client. It's a late import inside this function to avoid being picked up by the Lug dependency transfer.
+    import toolchest_client
+
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
     # Create a .lug-uuid4()/ directory for Lug module propagation
@@ -367,6 +403,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         docker_shell_location=docker_shell_location,
         serialize_dependencies=serialize_dependencies,
         internal_dir=lug_internal_dir,
+        redirect_shell=redirect_shell,
     )
     try:
         if toolchest_key:
@@ -378,13 +415,14 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             command_line_args = " ".join(command_line_args)
         remote_inputs = remote_inputs or []
         remote_inputs.append(lug_internal_dir)
+        container_name = user_docker.container_name if user_docker else None
         remote_run = toolchest_client.lug(
             custom_docker_image_id=image,
             tool_version=python_version,
             inputs=remote_inputs,
             output_path=output_directory,
             script=temp_input.name,
-            container_name=user_docker.container_name,
+            container_name=container_name,
             docker_shell_location=docker_shell_location,
             tool_args=command_line_args,
             instance_type=remote_instance_type,
@@ -407,36 +445,40 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             temp_input.close()
 
 
-def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_location):
+def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_location, redirect_shell):
     # todo: make sure the docker containers don't exit shortly after spawn, propagate errors
     mount = os.path.realpath(mount)
-    # Run user container
-    user_docker.container = client.containers.run(
-        image=user_docker.image_name_and_tag,
-        volumes=[f'{mount}:/lug'],
-        detach=True,
-        stdin_open=True,
-        name=user_docker.container_name,
-        command=docker_shell_location,
-        working_dir="/lug",
-    )
-    if threading.current_thread() is threading.main_thread() and not sys.platform.startswith('win'):
-        # Only supports Unix signals
-        signal.signal(signal.SIGABRT, user_docker.signal_kill_handler)
-        signal.signal(signal.SIGHUP, user_docker.signal_kill_handler)
-        signal.signal(signal.SIGSEGV, user_docker.signal_kill_handler)
-        signal.signal(signal.SIGTERM, user_docker.signal_kill_handler)
-    patched_functions = patch_system_calls(func, user_docker.container_name, docker_shell_location)
+    patched_functions = None
+    if user_docker:
+        # Run user container
+        user_docker.container = client.containers.run(
+            image=user_docker.image_name_and_tag,
+            volumes=[f'{mount}:/lug'],
+            detach=True,
+            stdin_open=True,
+            name=user_docker.container_name,
+            command=docker_shell_location,
+            working_dir="/lug",
+        )
+        if threading.current_thread() is threading.main_thread() and not sys.platform.startswith('win'):
+            # Only supports Unix signals
+            signal.signal(signal.SIGABRT, user_docker.signal_kill_handler)
+            signal.signal(signal.SIGHUP, user_docker.signal_kill_handler)
+            signal.signal(signal.SIGSEGV, user_docker.signal_kill_handler)
+            signal.signal(signal.SIGTERM, user_docker.signal_kill_handler)
+        patched_functions = patch_system_calls(func, user_docker.container_name, docker_shell_location, redirect_shell)
     try:
         result = func(*args, **kwargs)
     finally:
-        unpatch_system_calls(patched_functions)
+        if patched_functions:
+            unpatch_system_calls(patched_functions)
     return result
 
 
-def run(image, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_location="/bin/sh", remote=False,
+def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
-        volume_size=None, serialize_dependencies=False, command_line_args="", streaming_enabled=True):
+        volume_size=None, serialize_dependencies=True, command_line_args="", streaming_enabled=True,
+        redirect_shell=True):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
@@ -446,6 +488,7 @@ def run(image, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_lo
             if python_version not in supported_versions:
                 raise ValueError(f"Python version {python_version} is not supported. PRs welcome!")
             user_docker = None
+
             try:
                 if remote:
                     user_docker = DockerContainer(
@@ -453,25 +496,44 @@ def run(image, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_lo
                         image_name_and_tag=image,
                     )
                     result = execute_remote(
-                        func=func, args=args, kwargs=kwargs, image=image, remote_inputs=remote_inputs,
-                        toolchest_key=toolchest_key, remote_output_directory=remote_output_directory, tmp_dir=tmp_dir,
-                        user_docker=user_docker, remote_instance_type=remote_instance_type, volume_size=volume_size,
-                        python_version=python_version, docker_shell_location=docker_shell_location,
-                        serialize_dependencies=serialize_dependencies, command_line_args=command_line_args,
+                        func=func,
+                        args=args,
+                        kwargs=kwargs,
+                        image=image,
+                        remote_inputs=remote_inputs,
+                        toolchest_key=toolchest_key,
+                        remote_output_directory=remote_output_directory,
+                        tmp_dir=tmp_dir,
+                        user_docker=user_docker,
+                        remote_instance_type=remote_instance_type,
+                        volume_size=volume_size,
+                        python_version=python_version,
+                        docker_shell_location=docker_shell_location,
+                        serialize_dependencies=serialize_dependencies,
+                        command_line_args=command_line_args,
                         streaming_enabled=streaming_enabled,
+                        redirect_shell=image is not None and redirect_shell,
                     )
                 else:
-                    client = docker.from_env()
+                    client, user_docker = None, None
+                    if image:
+                        client = docker.from_env()
 
-                    # Get or pull the user Docker image from local/remote
-                    user_docker = DockerContainer(
-                        docker_client=client,
-                        image_name_and_tag=image,
-                    )
-                    user_docker.load_image(remote=remote)
+                        # Get or pull the user Docker image from local/remote
+                        user_docker = DockerContainer(
+                            docker_client=client,
+                            image_name_and_tag=image,
+                        )
+                        user_docker.load_image(remote=remote)
                     result = execute_local(
-                        func=func, args=args, kwargs=kwargs, mount=mount, client=client, user_docker=user_docker,
-                        docker_shell_location=docker_shell_location
+                        func=func,
+                        args=args,
+                        kwargs=kwargs,
+                        mount=mount,
+                        client=client,
+                        user_docker=user_docker,
+                        docker_shell_location=docker_shell_location,
+                        redirect_shell=image is not None and redirect_shell,
                     )
             finally:
                 if user_docker is not None and user_docker.container is not None:
@@ -484,3 +546,25 @@ def run(image, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_lo
         return inner
 
     return decorator_lug
+
+
+def hybrid(cloud=False, key=None, **kwargs):
+    return run(
+        image=None,
+        serialize_dependencies=True,
+        remote=cloud,
+        redirect_shell=False,
+        toolchest_key=key,
+        **kwargs
+    )
+
+
+def docker_sidecar(sidecar_image, cloud=False, extract_modules=True, key=None, **kwargs):
+    return run(
+        image=sidecar_image,
+        serialize_dependencies=extract_modules,
+        remote=cloud,
+        redirect_shell=False,
+        toolchest_key=key,
+        **kwargs
+    )
