@@ -1,6 +1,7 @@
 # Installation
 
-Note: if you haven't already, make sure you [install and start Docker Engine](https://docs.docker.com/engine/install/)!
+Note: if you're using Lug with Docker containers, make sure you 
+[install and start Docker Engine](https://docs.docker.com/engine/install/)!
 
 ## With `pip`
 
@@ -15,7 +16,7 @@ poetry add lug
 
 ## Supported Python versions
 
-We support Python 3.7 through the latest Python 3.11 release candidate.
+We support Python 3.8 through the latest Python 3.12 release candidate.
 
 ## Supported operating systems
 

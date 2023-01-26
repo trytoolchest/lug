@@ -136,7 +136,7 @@ def search_for_modules_to_register(member, modules_to_register, discovered_modul
 def get_modules_to_register(
         func,
         deep=False,
-        modules_to_skip=frozenset({"pytest", "lug", "cloudpickle", "docker", "toolchest_client", "importlib_metadata"})
+        modules_to_skip=frozenset({"pytest", "cloudpickle"})
 ):
     modules_to_register = []
     search_for_modules_to_register(
