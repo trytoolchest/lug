@@ -65,7 +65,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v1-deps-{{ checksum "poetry.lock" }}
+          key: v2-deps-{{ checksum "poetry.lock" }}
       - run:
           name: Install dependencies
            # --no-ansi flag is workaround for https://github.com/python-poetry/poetry/issues/7184
