@@ -48,20 +48,27 @@ def test_docker_sidecar_shell():
     assert "Debian GNU/Linux 11 (bullseye)" in result.stdout
 
 
-@lug.hybrid(cloud=True)
-def run_hybrid_in_cloud():
-    return subprocess.run('echo "Hello, `cat /etc/os-release`!"', text=True, capture_output=True, shell=True)
+def run_hybrid_in_cloud_wrapper(provider):
+    @lug.hybrid(cloud=True, provider=provider)
+    def run_hybrid_in_cloud():
+        return subprocess.run('echo "Hello, `cat /etc/os-release`!"', text=True, capture_output=True, shell=True)
+    return run_hybrid_in_cloud
 
 
-@lug.hybrid(cloud=False)
-def run_hybrid_locally():
-    return subprocess.run('echo "Hello, `cat /etc/os-release`!"', text=True, capture_output=True, shell=True)
+def run_hybrid_locally_wrapper(provider):
+    @lug.hybrid(cloud=False, provider=provider)
+    def run_hybrid_locally():
+        return subprocess.run('echo "Hello, `cat /etc/os-release`!"', text=True, capture_output=True, shell=True)
+    return run_hybrid_locally
 
 
 @pytest.mark.integration
-def test_hybrid_execution():
-    local_result = run_hybrid_locally()
+@pytest.mark.parametrize("provider", ["aws", "tce"])
+def test_hybrid_execution(provider):
+    parametrized_local = run_hybrid_locally_wrapper(provider)
+    local_result = parametrized_local()
     assert "Debian GNU/Linux 11 (bullseye)" not in local_result.stdout
     assert local_result.returncode == 0
-    cloud_result = run_hybrid_in_cloud()
+    parametrized_cloud = run_hybrid_in_cloud_wrapper(provider)
+    cloud_result = parametrized_cloud()
     assert "Debian GNU/Linux 11 (bullseye)" in cloud_result.stdout
