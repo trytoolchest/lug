@@ -294,8 +294,8 @@ def find_module_transferability(modules):
 
 def env_requirements_to_string(pip_packages):
     requirements_string = ""
-    for name, version in pip_packages.items():
-        requirements_string += f"{name}=={version} "
+    for name, package_version in pip_packages.items():
+        requirements_string += f"{name}=={package_version} "
     return requirements_string
 
 
