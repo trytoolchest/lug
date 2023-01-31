@@ -29,13 +29,10 @@ nav:
   - Home: "index.md"
   - Getting started:
       - Installation: "getting-started/installation.md"
-      - Adding Lug to a Function: "getting-started/adding-lug-to-a-function.md"
-      - Running Lug Remotely: "getting-started/running-lug-remotely.md"
+      - Create a Hybrid Function: "getting-started/create-a-hybrid-function.md"
+      - Running Hybrid Functions in the Cloud: "getting-started/running-lug-remotely.md"
+      - Create a Docker Sidecar Function: "getting-started/docker-sidecar.md"
       - Using Files: "getting-started/using-files.md"
-      - Dependencies and Lug: "getting-started/dependencies-and-lug.md"
-  - Reference:
-      - Redirected System Calls: "reference/redirected-system-calls.md"
-      - Supported Docker Images: "reference/supported-docker-images.md"
   - Troubleshooting:
       - Common Errors: "troubleshooting/common-errors.md"
 markdown_extensions:
@@ -55,4 +52,4 @@ extra:
 repo_url: https://github.com/trytoolchest/lug
 repo_name: lug
 edit_uri: edit/main/docs/docs
-copyright: Copyright 2022 Toolchest, Inc.
+copyright: Copyright 2023 Toolchest, Inc.

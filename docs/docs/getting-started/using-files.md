@@ -1,17 +1,12 @@
 # Using files
 
-!!! warning "Lug is not a security boundary"
+## Using files locally with Docker images
 
-    We strongly recommend only running trusted code in trusted containers with Lug. It is possible to break out of 
-    Lug's virtualization layer.
+When running a function with Lug locally, the Python function's file access doesn't change. You can skip this section!
 
-## Using files locally
+If you're using a sidecar Docker container, Lug mounts your system's file system at `/lug` inside the container.
 
-When running a function with Lug locally, the Python function's file access does not change. The container – or, in 
-other words, calls to `subprocess.run`, `subprocess.Popen`, and `os.system` – is limited to files in Lug's `mount` 
-argument.
-
-`mount` defaults to the current working directory, but you can pass a new mount point to grant greater access.
+By default, Lug mounts the current working directory to `/lug`. You can change this with the `mount` parameter.
 
 !!! tip "Lug's `mount` is a Docker mount point"
 
@@ -19,28 +14,23 @@ argument.
     environments, like Docker Desktop on macOS, require explicitly adding permissions for non-user files – even if 
     you're running as `root`.
 
-This grants full root directory access to Lug, but then uses a relative path to access a file one directory above the 
+This snippet grants mounts the root directory, but then uses a relative path to access a file one directory above the 
 current working directory:
 
 ```python
 import lug
-import subprocess
 
-@lug.run(image="alpine:3.16.2", mount="/")
-def hello_world(file_path):
-    result = subprocess.run(f"echo {file_path}", text=True, capture_output=True, shell=True)
+@lug.docker_sidecar(image="alpine:3.16.2", mount="/")
+def list_root():
+    result = lug.sidecar_shell("ls /lug/")
     return result.stdout
-
-file_path = "../test.txt"
-with open(file_path, 'w') as f:
-    f.write('Hello, world!')
     
-print(hello_world(file_path))
+print(list_root())
 ```
 
-You'll see `Hello, world!` printed.
+You'll see the output of `ls` on your root directory.
 
-### Absolute paths
+### Using absolute file paths
 
 To use absolute paths in Lug, you'll need:
 
@@ -50,40 +40,45 @@ To use absolute paths in Lug, you'll need:
 ```python
 import lug
 import os
-import subprocess
 
-@lug.run(image="alpine:3.16.2", mount="/")
-def hello_world(file_path):
-    result = subprocess.run(f"cat /lug{file_path}", text=True, capture_output=True, shell=True)
+@lug.docker_sidecar(sidecar_image="alpine:3.16.2", mount="/")
+def cat_file(absolute_path):
+    result = lug.sidecar_shell(f"cat /lug{absolute_path}")
     return result.stdout
 
-
-file_path = os.path.abspath("test.txt")
-with open(file_path, 'w') as f:
+absolute_path = os.path.abspath("test.txt")
+with open(absolute_path, 'w') as f:
     f.write('Hello, world!')
 
-print(hello_world(file_path))
+print(cat_file(absolute_path))
 ```
 
-You'll still see `Hello, world!` printed.
+If everything is working, you'll see `Hello, world!` printed.
 
 ## Using files remotely
 
-With remote execution, there are two new ways to access files:
+To use remote files, you'll need to set up input and output file handling.
 
-1. You need to pass all input files to the Lug` remote_inputs` argument. They're accessible at `./input/`.
+### Input files
 
-2. You need to set the Lug `remote_output_directory` argument to a directory, which will contain all files written to 
-`./output/`.
+All input files are passed to the Lug` remote_inputs` argument. They're accessible at `./input/` on the remote instance.
 
-You can pass local or S3 files to `remote_inputs`, and `remote_output_directory` can be local or on S3.
+
+### Output files
+
+All output files need to be written to `./output` on the remote instance. Set the `remote_output_directory` argument to 
+a directory where Lug will transfer all the output files.
+
+`remote_inputs` and `remote_output_directory` can be local files or S3 URIs.
+
+###
 
 ```python
 import lug
 import os
 import subprocess
 
-@lug.run(
+@lug.hybrid(
     image="alpine:3.16.2",
     remote_inputs=["./my_input/"],
     remote_output_directory="./my_output/",

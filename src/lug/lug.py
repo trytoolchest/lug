@@ -1,7 +1,7 @@
 import base64
 import functools
 import glob
-from importlib.metadata import packages_distributions
+from importlib.metadata import packages_distributions, version
 import inspect
 import os
 import shutil
@@ -261,7 +261,7 @@ def find_module_transferability(modules):
                 pip_names = packages_distribution[module.__name__]
                 for pip_name in pip_names:
                     # Drop local version identifiers (e.g. "+cu117" in "torch==1.13.1+cu117")
-                    public_version = module.__version__.split("+")[0]
+                    public_version = version(module.__name__)
                     uncopyable_pip_names[pip_name] = public_version
                 uncopyable_packages.add(module.__name__)
                 # Make sure we know not to copy the child if present (e.g. lug and lug.run)
@@ -413,7 +413,10 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
         output_directory = remote_output_directory or temp_directory.name
         if isinstance(command_line_args, list):
             command_line_args = " ".join(command_line_args)
-        remote_inputs = remote_inputs or []
+        if not remote_inputs:
+            remote_inputs = []
+        elif type(remote_inputs) is str:
+            remote_inputs = [remote_inputs]
         remote_inputs.append(lug_internal_dir)
         container_name = user_docker.container_name if user_docker else None
         remote_run = toolchest_client.lug(
@@ -489,7 +492,6 @@ def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_she
             if python_version not in supported_versions:
                 raise ValueError(f"Python version {python_version} is not supported. PRs welcome!")
             user_docker = None
-
             try:
                 if remote:
                     user_docker = DockerContainer(
@@ -550,23 +552,25 @@ def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_she
     return decorator_lug
 
 
-def hybrid(cloud=False, key=None, **kwargs):
+def hybrid(cloud=False, key=None, instance_type=None, **kwargs):
     return run(
         image=None,
         serialize_dependencies=True,
         remote=cloud,
         redirect_shell=False,
         toolchest_key=key,
+        remote_instance_type=instance_type,
         **kwargs
     )
 
 
-def docker_sidecar(sidecar_image, cloud=False, extract_modules=True, key=None, **kwargs):
+def docker_sidecar(sidecar_image, cloud=False, extract_modules=True, key=None, instance_type=None, **kwargs):
     return run(
         image=sidecar_image,
         serialize_dependencies=extract_modules,
         remote=cloud,
         redirect_shell=False,
         toolchest_key=key,
+        remote_instance_type=instance_type,
         **kwargs
     )

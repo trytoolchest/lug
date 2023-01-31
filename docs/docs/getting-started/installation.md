@@ -16,7 +16,7 @@ poetry add lug
 
 ## Supported Python versions
 
-We support Python 3.8 through the latest Python 3.12 release candidate.
+Lug supports Python 3.8 through the latest Python 3.12 release candidate.
 
 ## Supported operating systems
 

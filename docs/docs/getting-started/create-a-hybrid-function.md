@@ -80,9 +80,3 @@ print(num_cpus())
 
 This allows for easy switching between different environments and providers, making it easy to scale your computation 
 while utilizing specialized or lower-cost infrastructure.
-
-## There's more!
-
-This covers the basic of running Lug functions, but you can do a lot more than just print the number of CPUs! Check out 
-some of our Lug examples.
-
