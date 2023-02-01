@@ -1,16 +1,16 @@
 # Create a Docker Sidecar Function
 
-Lug Docker Sidecar functions are Lug Hybrid functions with an extra benefit: they attach a running Docker container to 
-your function. This is particularly useful for programs with very specific requirements function best in their own 
-separate container.
+Lug Docker Sidecar functions are like regular Lug Hybrid functions, but with an added bonus: they run a Docker 
+container alongside your function. This is helpful for programs that work best in their own separate container and that 
+you execute via shell.
 
-## Creating a Docker Sidecar function locally
+## Running locally
 
-To create a Docker Sidecar Function, add the `@lug.docker_sidecar` decorator with `sidecar_image` set to the Docker 
-image you want to use. Once that's set, you can use the `lug.sidecar_shell()` function to execute shell commands inside 
+To create a Docker Sidecar function, use the `@lug.docker_sidecar` decorator and specify the Docker image you want to 
+use with the `sidecar_image` argument. Then, you can use the `lug.sidecar_shell` function to run shell commands inside 
 the container.
 
-Here's an example that attaches a sidecar image for a bioinformatics package, and executes a simple command:
+Here's an example that shows how to use a bioinformatics package in a sidecar container:
 
 ```python
 import lug
@@ -23,14 +23,14 @@ def run_bowtie2():
 print(run_bowtie2())
 ```
 
-`lug.sidecar_shell()` calls a modified Python `subprocess.run` under the hood, so you expect common return values and 
-attributes – like `.stdout` in the example above. You can also pass the same arguments to `lug.sidecar_shell` that you 
-would to `subprocess.run` if needed.
+`lug.sidecar_shell()` is similar to the Python `subprocess.run` function, so you can expect similar return values and 
+attributes – like `result.stdout` in the example above. You can also pass the same arguments to `lug.sidecar_shell` 
+that you would to `subprocess.run`.
 
 ### Running in the cloud
 
-Just like with Hybrid functions, you can run a Docker Sidecar function in the cloud by adding `cloud=True` and setting 
-your Toolchest key:
+Running a Docker Sidecar function in the cloud is exactly the same as running a Hybrid function in the cloud: you just 
+need to add the `cloud=True` argument and set your Toolchest key:
 
 ```python
 import lug
@@ -47,5 +47,5 @@ def run_bowtie2():
 print(run_bowtie2())
 ```
 
-You can also add more power or use a different provider, 
-[just like you can with Hybrid functions](running-lug-remotely.md#run-your-hybrid-function-in-the-cloud).
+You can also grant more power to your function or use a different cloud provider, 
+[following the same steps as with Hybrid functions](running-lug-remotely.md#run-your-hybrid-function-in-the-cloud).

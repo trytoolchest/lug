@@ -1,21 +1,15 @@
 # Using files
 
-## Using files locally with Docker images
+## Accessing files locally
 
-When running a function with Lug locally, the Python function's file access doesn't change. You can skip this section!
+When running a function with Lug locally, the Python function's file access doesn't change. If you aren't using 
+Docker Sidecar, you can skip this section!
 
-If you're using a sidecar Docker container, Lug mounts your system's file system at `/lug` inside the container.
+If you are running a Docker Sidecar function locally, the access to your system's file system is a bit different. The 
+files in your system can be accessed inside the Docker container through the `/lug` directory. You can change the root 
+directory that's attached to the container with the `mount` parameter.
 
-By default, Lug mounts the current working directory to `/lug`. You can change this with the `mount` parameter.
-
-!!! tip "Lug's `mount` is a Docker mount point"
-
-    Lug's `mount` is a Docker mount point. This means that Docker must have permission to access the mount point. Some 
-    environments, like Docker Desktop on macOS, require explicitly adding permissions for non-user files – even if 
-    you're running as `root`.
-
-This snippet grants mounts the root directory, but then uses a relative path to access a file one directory above the 
-current working directory:
+Here's an example that accesses the root directory of the host file system from inside the Docker container:
 
 ```python
 import lug
@@ -28,14 +22,25 @@ def list_root():
 print(list_root())
 ```
 
-You'll see the output of `ls` on your root directory.
+In this example, the function `list_root` uses the `lug.sidecar_shell` function to execute the `ls` command inside the 
+Docker container and returns the output. The `mount` parameter is set to `/`, so the root directory of the host's file 
+system is mounted at `/lug` inside the Docker container.
 
-### Using absolute file paths
+!!! tip "Lug's `mount` is a Docker mount point"
 
-To use absolute paths in Lug, you'll need:
+    Lug's `mount` is a Docker mount point. This means that Docker must have permission to access the mount point. Some 
+    environments, like Docker Desktop on macOS, require explicitly adding permissions for non-user files – even if 
+    you're running as `root`.
 
-- to add a `/lug` prefix to the absolute path
-- a mount point that contains the path you're referencing
+### Accessing files with absolute paths
+
+When using absolute paths in Lug, there are two things to keep in mind:
+
+1. Add a `/lug` prefix to the absolute path inside the Docker container
+2. The mount point set in the Docker sidecar should contain the path being referenced
+
+Here's an example that accesses a file created on the host system from within the Docker container using an absolute 
+path:
 
 ```python
 import lug
@@ -53,48 +58,50 @@ with open(absolute_path, 'w') as f:
 print(cat_file(absolute_path))
 ```
 
-If everything is working, you'll see `Hello, world!` printed.
+It will print `Hello, world!` if everything is set up correctly.
 
-## Using files remotely
+## Accessing files in cloud runs
 
-To use remote files, you'll need to set up input and output file handling.
+To access files in remote runs, you need to set up input and output file handling.
 
 ### Input files
 
-All input files are passed to the Lug` remote_inputs` argument. They're accessible at `./input/` on the remote instance.
-
+You can pass input files to a Lug function by using the `remote_inputs` argument. The input files are accessible at 
+`./input/` on the remote instance.
 
 ### Output files
 
-All output files need to be written to `./output` on the remote instance. Set the `remote_output_directory` argument to 
-a directory where Lug will transfer all the output files.
+To access output files, you need to specify a directory for the output files using the `remote_output_directory` 
+argument. The output files need to be written to `./output` on the remote instance.
 
-`remote_inputs` and `remote_output_directory` can be local files or S3 URIs.
+Both `remote_intputs` and `remote_output_directory` can be local paths or S3 URIs.
 
-###
+### Example usage
+
+Here's an example that shows how to use remote files with a Lug Docker Sidecar:
+
 
 ```python
 import lug
 import os
-import subprocess
 
-@lug.hybrid(
-    image="alpine:3.16.2",
+@lug.docker_sidecar(
+    sidecar_image="alpine:3.16.2",
     remote_inputs=["./my_input/"],
     remote_output_directory="./my_output/",
-    remote=True,
-    toolchest_key="KEY",
+    cloud=True,
+    key="YOUR_KEY_HERE",
 )
 def hello_world():
-    result = subprocess.run(f"cat ./input/test.txt > ./output/test2.txt", text=True, capture_output=True, shell=True)
+    result = lug.sidecar_shell("cat ./input/one.txt > ./output/two.txt")
     return result.stdout
 
 os.makedirs("./my_input", exist_ok=True)
-file_path = "./my_input/test.txt"
+file_path = "./my_input/one.txt"
 with open(file_path, 'w') as f:
     f.write('Hello, world!')
 
-print(hello_world())
+hello_world()
 ```
 
-`./my_output/` now has a named `test.txt` with the contents "Hello, world!"
+The `./my_output/` now has a file named `two.txt` with the contents "Hello, world!"

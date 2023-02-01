@@ -50,9 +50,9 @@ def num_cpus():
 print(num_cpus())
 ```
 
-This will run the function on an instance with 96 CPUs. You can use any of the cloud-generic 
+This will run the function on an instance with 48 CPUs. You can use any of the cloud-generic 
 [available Toolchest instance types](https://docs.trytoolchest.com/toolchest-hosted-cloud/instance-types/) by replacing 
-"compute-96" with the desired instance type.
+"compute-48" with the desired instance type.
 
 ### Running on another cloud
 
