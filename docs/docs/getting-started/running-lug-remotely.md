@@ -1,83 +1,88 @@
-# Running Lug remotely
+# Running Hybrid Functions in the Cloud
 
-## Running Lug in the Toolchest cloud
+## Get an API key
 
-### Get a Toolchest API key
+To run a function in the cloud using Lug, you will need to get an API key from Toolchest. Here's how:
 
-1. [Sign up for a Toolchest account](https://www.trytoolchest.com/)
+1. First, [sign up for a free Toolchest account](https://dash.trytoolchest.com/).
+2. Log in and navigate to the API Keys section.
+3. Click on "Generate New Key" to create a new API key.
+4. Once you have the key, you can use the Toolchest app to monitor your runs, execute in the cloud, or connect your own 
+on-prem servers.
 
-### Add `remote=True` and your Toolchest key:
+Note: Lug uses Toolchest for cloud execution, so an API key from Toolchest is required to use Lug's cloud functionality.
+
+## Run your hybrid function in the cloud
+
+To run your hybrid function on the cloud, set the `cloud` parameter to `True`. You'll also need to set your Toolchest 
+API key in the `key` parameter.
+
+Here's an example of how to use the `@lug.hybrid` decorator to run a `num_cpus` function on the cloud:
 
 ```python
 import lug
-import subprocess
+import multiprocessing
 
-@lug.run(image="alpine:3.16.2", remote=True, toolchest_key="YOUR_KEY")
-def hello_world():
-    result = subprocess.run('echo "Hello, `uname`!"', capture_output=True, text=True, shell=True)
-    return result.stdout
+@lug.hybrid(cloud=True, key="YOUR_KEY_HERE")
+def num_cpus():
+    return multiprocessing.cpu_count()
 
-print(hello_world())
+print(num_cpus())
 ```
 
-That's it! There's about a minute of overhead, but once it's finished you'll once again see `Hello, Linux!`
+This will run the `num_cpus` function on the cloud using the smallest available instance (2 CPUs) by default. Once the 
+execution is finished, you will see the number of CPUs returned as the result. By default, Lug uses AWS as the cloud 
+provider.
 
-### If needed, add more vCPUs, RAM, GPUs, and disk
+### Adding more power
 
-By default, Lug runs remotely with 2 vCPUs, 4 GB of RAM, and 8 GB of disk.
-
-To add more disk, use the `volume_size` argument. To add more vCPUs or RAM, use the `instance_type` argument.
-
-Here's what it looks like to run with 48 vCPUs, 96 GB of RAM, and 512 GB of disk space:
+If you want to give the function more resources, you can specify a different instance type when you decorate the 
+function. For example, if you want to grant 48 CPUs, you can set the instance type to "compute-48":
 
 ```python
 import lug
-import subprocess
+import multiprocessing
 
-@lug.run(
-    image="alpine:3.16.2",
-    remote=True,
-    toolchest_key="YOUR_KEY",
-    volume_size=512,
+@lug.hybrid(cloud=True, key="YOUR_KEY_HERE", instance_type="compute-48")
+def num_cpus():
+    return multiprocessing.cpu_count()
+
+print(num_cpus())
+```
+
+This will run the function on an instance with 48 CPUs. You can use any of the cloud-generic 
+[available Toolchest instance types](https://docs.trytoolchest.com/toolchest-hosted-cloud/instance-types/) by replacing 
+"compute-48" with the desired instance type.
+
+### Running on another cloud
+
+You can also run your function on another cloud provider – or your on-prem servers – as long as it's connected to your 
+Toolchest account. By default, every account has access to the lower-cost queued Toolchest Cloud Extension (TCE), so 
+we'll use it for this example.
+
+To run your Lug functions in TCE, simply set the `provider` argument to "tce" in the `@lug.hybrid` function call.
+
+```python
+import lug
+import multiprocessing
+
+@lug.hybrid(
+    cloud=True,
+    key="YOUR_KEY_HERE",
     instance_type="compute-48",
+    provider="tce", # add this line
 )
-def hello_world():
-    result = subprocess.run('echo "Hello, `uname`!"', capture_output=True, text=True, shell=True)
-    return result.stdout
+def num_cpus():
+    return multiprocessing.cpu_count()
 
-print(hello_world())
+print(num_cpus())
 ```
 
-See the Toolchest docs for a full list of [instance types](todo) and 
-[pricing](https://docs.trytoolchest.com/docs/pricing).
+This allows for easy switching between different environments and providers, making it easy to scale your computation 
+while utilizing specialized or lower-cost infrastructure.
 
-### Command-line arguments
-To pass in command-line arguments to your remotely executing script, use the `command_line_arguments` argument. 
+## There's more!
 
-This can be either a list or a single string of space-separated args. 
-```python
-import argparse
-import lug
-import subprocess
-
-@lug.run(
-    image="alpine:3.16.2",
-    remote=True,
-    toolchest_key="YOUR_KEY",
-    command_line_args=["--value-to-print", "Hello"],
-)
-def say_hello():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--value-to-print",
-                        dest="value_to_print")
-    
-    result = subprocess.run(f"echo {parser.parse_args().value_to_print}", capture_output=True, text=True, shell=True)
-    return result.stdout
-
-print(say_hello())
-```
-
-## Running Lug in AWS, Azure, GCP, or on-prem
-
-You can run Lug on any machine, but automated cloud offloading isn't supported yet outside of Toolchest. PRs are welcome!
+This covers the basic of running Lug functions, but you can do a lot more than just print the number of CPUs! Check out 
+some of our Lug examples.
 
