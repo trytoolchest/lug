@@ -46,15 +46,17 @@ path:
 import lug
 import os
 
+def create_file(absolute_path):
+    with open(absolute_path, 'w') as f:
+        f.write('Hello, world!')
+
 @lug.docker_sidecar(sidecar_image="alpine:3.16.2", mount="/")
 def cat_file(absolute_path):
     result = lug.sidecar_shell(f"cat /lug{absolute_path}")
     return result.stdout
-
+    
 absolute_path = os.path.abspath("test.txt")
-with open(absolute_path, 'w') as f:
-    f.write('Hello, world!')
-
+create_file(absolute_path)
 print(cat_file(absolute_path))
 ```
 
