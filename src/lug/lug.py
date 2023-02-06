@@ -1,7 +1,9 @@
 import base64
 import functools
 import glob
-from importlib.metadata import packages_distributions, version
+
+from docker.errors import DockerException, APIError
+from importlib_metadata import packages_distributions, version
 import inspect
 import os
 import shutil
@@ -525,8 +527,13 @@ def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_she
                 else:
                     client, user_docker = None, None
                     if image:
-                        client = docker.from_env()
-
+                        try:
+                            client = docker.from_env()
+                        except (APIError, DockerException):
+                            raise EnvironmentError(
+                                'Unable to connect to Docker. Make sure you have Docker installed and that it is '
+                                'currently running.'
+                            )
                         # Get or pull the user Docker image from local/remote
                         user_docker = DockerContainer(
                             docker_client=client,
