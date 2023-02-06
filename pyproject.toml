@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lug"
-version = "0.3.0"
+version = "0.3.1"
 description = "Run Python functions locally or in the cloud."
 authors = [
     "Justin Herr <justin@trytoolchest.com>",
@@ -24,6 +24,7 @@ packages = [
 python = ">=3.8,<3.12"
 docker = "^6.0.0"
 cloudpickle = "^2.2.0"
+importlib-metadata = "4.13"
 toolchest-client = "^0.11.10"
 
 # Poetry 1.2 introduces a breaking change: this should eventually be refactored to "tool.poetry.group.dev.dependencies"
