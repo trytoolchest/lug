@@ -39,7 +39,7 @@ def test_remote_call_sans_pytest_decorator():
 
 @lug.docker_sidecar(sidecar_image="python:bullseye", cloud=True)
 def docker_sidecar_shell():
-    return lug.sidecar_shell('echo "Hello, `cat /etc/os-release`!"', capture_output=True)
+    return lug.sidecar_shell('echo "Hello, `cat /etc/os-release`!"')
 
 
 @pytest.mark.integration
