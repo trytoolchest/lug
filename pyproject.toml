@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lug"
-version = "0.3.1"
+version = "0.3.2"
 description = "Run Python functions locally or in the cloud."
 authors = [
     "Justin Herr <justin@trytoolchest.com>",
