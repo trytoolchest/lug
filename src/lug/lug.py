@@ -360,7 +360,8 @@ def create_python_script(func, args, kwargs, temp_input, user_docker, docker_she
         fp.write("\tos.makedirs(os.path.dirname(dir), exist_ok=True)\n")
         fp.write("\tsys.path.insert(0, os.path.dirname(dir))\n")
         fp.write(f"for link in {links}:\n")  # ln all paths
-        fp.write("\tos.symlink(os.path.join(os.getcwd(), link[1]), link[0])\n")
+        fp.write("\tif not os.path.exists(link[0]):\n")
+        fp.write("\t\tos.symlink(os.path.join(os.getcwd(), link[1]), link[0])\n")
         fp.write(f"func = cloudpickle.loads(base64.decodebytes({encoded_func}))\n")
         fp.write(f"patch_system_calls = cloudpickle.loads(base64.decodebytes({encoded_pickled_patch}))\n")
         fp.write(f"args = cloudpickle.loads(base64.decodebytes({encoded_args}))\n")
