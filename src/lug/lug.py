@@ -441,7 +441,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             compress_inputs=True,
             pip_dependencies=pip_packages_string,
             retain_base_directory=True,
-            run_location=provider,
+            provider=provider,
         )
         status_response = remote_run.get_status(return_error=True)
         status = status_response['status']
