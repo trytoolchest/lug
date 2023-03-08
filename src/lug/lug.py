@@ -388,7 +388,7 @@ def parse_toolchest_run(output_path, output_uuid):
 
 def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, tmp_dir, image, remote_inputs,
                    user_docker, remote_instance_type, volume_size, python_version, docker_shell_location,
-                   serialize_dependencies, command_line_args, streaming_enabled, redirect_shell, provider):
+                   serialize_dependencies, command_line_args, streaming_enabled, redirect_shell, provider, log_level):
     # We're deploying Lug via Toolchest, but the user code deployed by Lug could include a different version of the
     # client. It's a late import inside this function to avoid being picked up by the Lug dependency transfer.
     import toolchest_client
@@ -442,6 +442,7 @@ def execute_remote(func, args, kwargs, toolchest_key, remote_output_directory, t
             pip_dependencies=pip_packages_string,
             retain_base_directory=True,
             provider=provider,
+            log_level=log_level,
         )
         status_response = remote_run.get_status(return_error=True)
         status = status_response['status']
@@ -489,7 +490,7 @@ def execute_local(mount, client, user_docker, func, args, kwargs, docker_shell_l
 def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_shell_location="/bin/sh", remote=False,
         remote_inputs=None, remote_output_directory=None, toolchest_key=None, remote_instance_type=None,
         volume_size=None, serialize_dependencies=True, command_line_args="", streaming_enabled=True,
-        redirect_shell=True, provider="aws"):
+        redirect_shell=True, provider="aws", log_level="INFO"):
     def decorator_lug(func):
         @functools.wraps(func)
         def inner(*args, **kwargs):
@@ -524,6 +525,7 @@ def run(image=None, mount=os.getcwd(), tmp_dir=tempfile.gettempdir(), docker_she
                         streaming_enabled=streaming_enabled,
                         redirect_shell=image is not None and redirect_shell,
                         provider=provider,
+                        log_level=log_level,
                     )
                 else:
                     client, user_docker = None, None

@@ -1391,14 +1391,14 @@ reference = "pypi-public"
 
 [[package]]
 name = "toolchest-client"
-version = "0.11.12"
+version = "0.11.13"
 description = "Python client for Toolchest"
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "toolchest_client-0.11.12-py3-none-any.whl", hash = "sha256:57e1962151b900c39c1520f5a16f3c5e0df2914fd18f3bdd97d2978fac243df2"},
-    {file = "toolchest_client-0.11.12.tar.gz", hash = "sha256:9f5a43ee16dab42944c040332fdb85599750a944e90bb706b888accac7d6679c"},
+    {file = "toolchest_client-0.11.13-py3-none-any.whl", hash = "sha256:b6b2c51a1c10d5b3983087126f702ec9fccca526e1496c04aab0e035ee4f18eb"},
+    {file = "toolchest_client-0.11.13.tar.gz", hash = "sha256:035fa979b2baa6ec1b5d49602f0481b8b05b7f40a85796ddc90d44fdc7199999"},
 ]
 
 [package.dependencies]
