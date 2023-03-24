@@ -26,18 +26,18 @@ reference = "pypi-public"
 
 [[package]]
 name = "boto3"
-version = "1.26.69"
+version = "1.26.98"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.69-py3-none-any.whl", hash = "sha256:9a0a29179957cb26fa8c3c1fddf66b18efaeaf633e08db5fb53815ffb0421419"},
-    {file = "boto3-1.26.69.tar.gz", hash = "sha256:eb8cde24a4c5755c35126e8cd460e6b51c63d04292419e7e95721232720c7e5b"},
+    {file = "boto3-1.26.98-py3-none-any.whl", hash = "sha256:983ec9e539431c29b5265e435b91af7c0d77a75809e173427798edb4ede1d69c"},
+    {file = "boto3-1.26.98.tar.gz", hash = "sha256:f35a42c6d0130a75e58485efa94383256d9b8c72c3a31ad872807873a8800363"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.69,<1.30.0"
+botocore = ">=1.29.98,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -51,14 +51,14 @@ reference = "pypi-public"
 
 [[package]]
 name = "botocore"
-version = "1.29.69"
+version = "1.29.98"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.69-py3-none-any.whl", hash = "sha256:2a4ab8bcb3177daa425019e125c09996b9a6a1a62bb0baaaeeb86ffd552719cc"},
-    {file = "botocore-1.29.69.tar.gz", hash = "sha256:7e1bebca013544fbc298cb58603bfccd5f71b49c720a5c33c07cf5dfc8145a1f"},
+    {file = "botocore-1.29.98-py3-none-any.whl", hash = "sha256:ae906c1feb56063a38ffd2280232fa44d634057825470d3beed274925088cb42"},
+    {file = "botocore-1.29.98.tar.gz", hash = "sha256:b74283ff71eb4e57edfa5cf6dc36d959b1eec618a2b1e5e781643184857dd1c4"},
 ]
 
 [package.dependencies]
@@ -1391,14 +1391,14 @@ reference = "pypi-public"
 
 [[package]]
 name = "toolchest-client"
-version = "0.11.13"
+version = "0.11.14"
 description = "Python client for Toolchest"
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "toolchest_client-0.11.13-py3-none-any.whl", hash = "sha256:b6b2c51a1c10d5b3983087126f702ec9fccca526e1496c04aab0e035ee4f18eb"},
-    {file = "toolchest_client-0.11.13.tar.gz", hash = "sha256:035fa979b2baa6ec1b5d49602f0481b8b05b7f40a85796ddc90d44fdc7199999"},
+    {file = "toolchest_client-0.11.14-py3-none-any.whl", hash = "sha256:eb73b46fcd8376232eea22c4d23f107fcb5c4faff3dac09dd9a44da470e91677"},
+    {file = "toolchest_client-0.11.14.tar.gz", hash = "sha256:ca081e36a176688c042a9d2b6d0ef51b71a87456b65d8bb22bea6df57f73c484"},
 ]
 
 [package.dependencies]
@@ -1824,4 +1824,4 @@ reference = "pypi-public"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "b8d17ae16871f7613258ec59f91ac6cee9a41dcce8591afa1cb12d2acb5c2d9f"
+content-hash = "e8b91ac28b231022408da7325797c53be41199962afa6eb91d420dd30d3f85ab"
